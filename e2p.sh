@@ -18,7 +18,16 @@
 global_vars() {
 	
 	global_white_list=("wintrace@outlook.com" "313721293@qq.com")		
+
 	global_tmpbox="$HOME/tmpbox"
+
+	global_local_blog="$HOME/local/blog"
+
+	global_local_posts="$global_local_blog/source/_posts"
+
+	global_local_htmls="$global_local_blog/public"
+
+	global_site_blog="$HOME/site/blog"
 		
 		
 }
@@ -76,7 +85,6 @@ check_sender() {
 # $1   | 邮件序号
 #------+------------------
 
-#		save $1 $global_tmpbox/copy.txt
 extract_mail() {
 	{
 		mail << EOF
@@ -88,8 +96,23 @@ EOF
 		#AWK根据邮件格式，提取正文内容。无附件。将其保存在$global_tmpbox/body.txt中。
 		#SED删除第一行空行。
 	} | awk '/Content-Type: text\/plain/, /-end-/{if(i>1) print x; x=$0; i++}'\
-	  | sed '1d;N;$d;D' \
+	  | sed '1d' \
 	  > $global_tmpbox/body.txt  	
+
+	#保存一份副本。可以提取附件，同时将邮件移出了邮箱防止重复解析。
+}
+
+#删除邮件
+#*工具函数*
+#------+------------------
+# 参数 | 描述
+#------+------------------
+# $1   | 邮件序号
+#------+------------------
+del_mail() {
+	mail -N << EOF
+	d $1
+EOF
 }
 
 #提取邮件主题（不支持空格）
@@ -104,6 +127,28 @@ get_subject() {
 	echo $subj
 }
 
+#重新从markdown生成html文件
+#*API函数*
+update() {
+	cd $global_local_blog && hexo clean --silent && hexo g --silent
+}
+
+#把邮件内容作为博文。发布到博客。
+#*API函数*
+add() {
+	#注意！提取第一行为标题。所有邮件正文第一行不能为空。
+	local title=`cat $global_tmpbox/body.txt | awk 'NR == 1 {print}'`
+	echo -e "title: $title\n---\n" >> $global_local_posts/$title.md
+
+	#邮件除第一行，都将作为正文。
+	cat $global_tmpbox/body.txt | awk 'NR != 1 {print}' >> $global_local_posts/$title.md
+
+	update
+	rm -r $global_site_blog/*
+	cp -R $global_local_htmls/* $global_site_blog/
+
+	echo "博文《$title》部署成功，您可以刷新网页查看。" | mail -s "部署成功" z
+}
 
 #****主函数****
 #为了提高程序可读性，统一在主函数调用该脚本里其他函数
@@ -113,9 +158,17 @@ MAIN (){
 	email_num=`check_sender`
 	[[ -z $email_num ]] && exit
 
+
+	extract_mail $email_num
+
 	email_subj=`get_subject $email_num`
-	echo $email_subj
-#	extract_mail $email_num && echo done
+
+	if [ "$email_subj" == "post" ]
+	then
+		add
+	fi
+
+	del_mail $email_num
 }
 
 #***************************************************
