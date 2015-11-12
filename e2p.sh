@@ -43,11 +43,10 @@ global_vars() {
 
 #如果待匹配的用户在白名单中则返回真，否则返回假
 #*工具函数*
-#------+------------------
-# 参数 | 描述
-#------+------------------
-# $1   | 待匹配的用户
-#------+------------------
+#-------------------------
+# 参数   描述
+# $1     待匹配的用户
+#-------------------------
 match_white_list() {
 	for user in ${global_white_list[@]}; do
 		if [ "$1" == "$user" ]
@@ -62,15 +61,12 @@ match_white_list() {
 #检查邮件发送者是否在白名单中，如果在，返回其邮件编号。为真。
 #*工具函数*
 #如果不在返回假。
-#-----------+--------------------------
-#    返回值 | 描述
-#-----------+--------------------------
-#     1     | 检测失败，无管理员邮件
-#-----------+--------------------------
-#     0     | 检测成功，有管理员邮件
-#-----------+--------------------------
-# $(($i+1)) | 管理员邮件的序号
-#-----------+--------------------------
+#--------------------------------------
+#    返回值   描述
+#     1       检测失败，无管理员邮件
+#     0       检测成功，有管理员邮件
+# $(($i+1))   管理员邮件的序号
+#--------------------------------------
 check_sender() {
 	#通过在配置文件~/.mailrc或/etc/nail.rc中设置headline的值
 	#可以控制mail -H的输出字段。
@@ -88,11 +84,11 @@ check_sender() {
 
 #提取邮件正文（纯文本）
 #*工具函数*
-#------+------------------
-# 参数 | 描述
-#------+------------------
-# $1   | 邮件序号
-#------+------------------
+#-------------------------
+# 参数   描述
+#-------------------------
+# $1     邮件序号
+#-------------------------
 
 extract_mail() {
 	{
@@ -113,11 +109,10 @@ EOF
 
 #删除邮件
 #*工具函数*
-#------+------------------
-# 参数 | 描述
-#------+------------------
-# $1   | 邮件序号
-#------+------------------
+#-------------------------
+# 参数   描述
+# $1     邮件序号
+#-------------------------
 del_mail() {
 	mail << EOF
 	d $1
@@ -126,11 +121,10 @@ EOF
 
 #提取邮件主题（不支持空格）
 #*工具函数*
-#------+------------------
-# 参数 | 描述
-#------+------------------
-# $1   | 邮件序号
-#------+------------------
+#-------------------------
+# 参数   描述
+# $1     邮件序号
+#-------------------------
 get_subject() {
 	local subj=`mail -H | awk '{if($1 == "'$1'") print $3}'`
 	echo $subj
@@ -178,20 +172,26 @@ list() {
 # * 格式必须为一行一个条目。
 # * API函数 
 del() {
-	#获取要删除的目标博文
+	#获取要删除的目标博文并初始化操作标识
 	local target=(`cat $global_tmpbox/body.txt | awk '{print}'`)
+	local error=0
+	local norm=0
 
 	#静默创建日志文件
 	{ 
+		echo -e "---操作日志---" > $global_tmpbox/del.log
 		echo -e "成功删除的博文：" > $global_tmpbox/del_norm.log
 		echo -e "无法删除的博文（请检查文件名是否正确）：" > $global_tmpbox/del_err.log
 	} &> /dev/null
 
+	#遍历博文
 	for file in ${target[@]}; do
 		if [ -e $global_local_posts/$file.md ]; then
 			rm $global_local_posts/$file.md	
+			[[ $norm -eq 0 ]] && norm=1
 			echo -e "《$file》" >> $global_tmpbox/del_norm.log
 		else
+			[[ $error -eq 0 ]] && error=1
 			echo -e "《$file》" >> $global_tmpbox/del_err.log
 		fi
 	done
@@ -199,8 +199,12 @@ del() {
 	update
 
 	#将日志发送给博客管理员
-	cat $global_tmpbox/del_norm.log > $global_tmpbox/del.log && \
-	cat $global_tmpbox/del_err.log >> $global_tmpbox/del.log && \
+	[[ $norm -eq 1 ]] && \
+	cat $global_tmpbox/del_norm.log >> $global_tmpbox/del.log
+
+	[[ $error -eq 1 ]] && \
+	cat $global_tmpbox/del_err.log >> $global_tmpbox/del.log
+
 	cat $global_tmpbox/del.log \
 	| mail -s "操作日志" ${global_white_list[0]} #将结果通过邮件回传给管理员
 }
@@ -208,43 +212,38 @@ del() {
 #****主函数****
 #为了提高程序可读性，统一在主函数调用该脚本里其他函数
 MAIN (){
+	#检测邮箱里是否有邮件。
 	mail -e || exit
 
-	#激活全局变量
+	#激活全局变量。
 	global_vars
 
-	#
+	#获取管理员邮件序号。
 	email_num=`check_sender`
 	[[ -z $email_num ]] && exit
 
 	#设置编码，否则Crontab调用的时候会乱码。
 	export LANG="en_US.UTF-8"
 
-
+	#提取邮件正文。
 	extract_mail $email_num
 
 	email_subj=`get_subject $email_num`
 
-	if [ "$email_subj" == "post" ]
-	then
-		add
-	elif [ "$email_subj" == "list" ]
-	then 
-		list
-	fi
-
-	if [ "$email_sugj" == "del" ]
-	then
-		del
-	fi
+	case "$email_subj" in
+		"post" ) add ;;
+		"list" ) list ;;
+		"del"  ) del ;;
+		"*"    ) del_mail $email_num && ext;;
+	esac
 
 	del_mail $email_num
 }
 
+
 #***************************************************
-#请勿改动此部分内容。*******************************
-#如果要修改，修改MAIN()函数。***********************
+#***************************************************
+#DO NOT CHANGE ANYTHING HERE ***********************
 MAIN #**********************************************
 #***************************************************
-#global_vars #******************************************TEST
-#del ./test.txt
+#***************************************************
