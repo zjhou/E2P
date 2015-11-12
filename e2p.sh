@@ -140,10 +140,14 @@ get_subject() {
 #*API函数*
 update() {
 	cd $global_local_blog && hexo clean --silent && hexo g --silent
+	rm -r $global_site_blog/*
+	cp -R $global_local_htmls/* $global_site_blog/
 }
 
 #把邮件内容作为博文。发布到博客。
-#*API函数*
+# * 此时邮件内容必须为准备发布的博文。
+# * 格式：第一行为博文的名字，不能为空行。
+# * API函数
 add() {
 	#注意！提取第一行为标题。所有邮件正文第一行不能为空。
 	local title=`cat $global_tmpbox/body.txt | awk 'NR == 1 {print}'`
@@ -153,8 +157,6 @@ add() {
 	cat $global_tmpbox/body.txt | awk 'NR != 1 {print}' >> $global_local_posts/$title.md
 
 	update
-	rm -r $global_site_blog/*
-	cp -R $global_local_htmls/* $global_site_blog/
 
 	echo "博文《$title》部署成功，您可以刷新网页查看。" \
 	| mail -s "部署成功" ${global_white_list[0]}
@@ -162,13 +164,47 @@ add() {
 
 
 #列出所有博文的目录
-#*API函数*
+# * API函数
 list() {
 	#设置ls输出的时间格式，并按时间排序，最近的在前。
 	ls -lt --time-style=+"%Y/%m/%d" $global_local_posts \
 	| awk 'NR!=1 {gsub(/\.md/,"",$0);printf("%10s 《%s》\n",$6, $7)}' \
 	| mail -s "博文列表" ${global_white_list[0]} #将结果通过邮件回传给管理员
 }
+
+
+#批量删除博文
+# * 邮件正文内容必须为准备删除的博文名字。
+# * 格式必须为一行一个条目。
+# * API函数 
+del() {
+	#获取要删除的目标博文
+	local target=(`cat $global_tmpbox/body.txt | awk '{print}'`)
+
+	#静默创建日志文件
+	{ 
+		echo -e "成功删除的博文：" > $global_tmpbox/del_norm.log
+		echo -e "无法删除的博文（请检查文件名是否正确）：" > $global_tmpbox/del_err.log
+	} &> /dev/null
+
+	for file in ${target[@]}; do
+		if [ -e $global_local_posts/$file.md ]; then
+			rm $global_local_posts/$file.md	
+			echo -e "《$file》" >> $global_tmpbox/del_norm.log
+		else
+			echo -e "《$file》" >> $global_tmpbox/del_err.log
+		fi
+	done
+
+	update
+
+	#将日志发送给博客管理员
+	cat $global_tmpbox/del_norm.log > $global_tmpbox/del.log && \
+	cat $global_tmpbox/del_err.log >> $global_tmpbox/del.log && \
+	cat $global_tmpbox/del.log \
+	| mail -s "操作日志" ${global_white_list[0]} #将结果通过邮件回传给管理员
+}
+
 #****主函数****
 #为了提高程序可读性，统一在主函数调用该脚本里其他函数
 MAIN (){
@@ -197,6 +233,11 @@ MAIN (){
 		list
 	fi
 
+	if [ "$email_sugj" == "del" ]
+	then
+		del
+	fi
+
 	del_mail $email_num
 }
 
@@ -205,4 +246,5 @@ MAIN (){
 #如果要修改，修改MAIN()函数。***********************
 MAIN #**********************************************
 #***************************************************
-#******************************************TEST AREA
+#global_vars #******************************************TEST
+#del ./test.txt
