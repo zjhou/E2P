@@ -18,12 +18,13 @@
 global_vars() {
 	
 	global_white_list=("wintrace@outlook.com" "313721293@qq.com")		
+	global_tmpbox="$HOME/tmpbox"
 		
 		
 }
 
-#*工具函数*
 #如果待匹配的用户在白名单中则返回真，否则返回假
+#*工具函数*
 #------+------------------
 # 参数 | 描述
 #------+------------------
@@ -40,8 +41,8 @@ match_white_list() {
 	return 1
 }
 
-#*工具函数*
 #检查邮件发送者是否在白名单中，如果在，返回其邮件编号。为真。
+#*工具函数*
 #如果不在返回假。
 #-----------+--------------------------
 #    返回值 | 描述
@@ -67,13 +68,54 @@ check_sender() {
 	return 1
 }
 
+#提取邮件正文（纯文本）
+#*工具函数*
+#------+------------------
+# 参数 | 描述
+#------+------------------
+# $1   | 邮件序号
+#------+------------------
+
+#		save $1 $global_tmpbox/copy.txt
+extract_mail() {
+	{
+		mail << EOF
+		p $1
+		echo " "
+		echo "-end-"
+		q
+EOF
+		#AWK根据邮件格式，提取正文内容。无附件。将其保存在$global_tmpbox/body.txt中。
+		#SED删除第一行空行。
+	} | awk '/Content-Type: text\/plain/, /-end-/{if(i>1) print x; x=$0; i++}'\
+	  | sed '1d;N;$d;D' \
+	  > $global_tmpbox/body.txt  	
+}
+
+#提取邮件主题（不支持空格）
+#*工具函数*
+#------+------------------
+# 参数 | 描述
+#------+------------------
+# $1   | 邮件序号
+#------+------------------
+get_subject() {
+	local subj=`mail -H | awk '{if($1 == "'$1'") print $3}'`
+	echo $subj
+}
+
 
 #****主函数****
-#为了程序可读性，封装了该脚本里其他函数
+#为了提高程序可读性，统一在主函数调用该脚本里其他函数
 MAIN (){
 	global_vars
-	emailNum=`check_sender`
-	echo $emailNum
+
+	email_num=`check_sender`
+	[[ -z $email_num ]] && exit
+
+	email_subj=`get_subject $email_num`
+	echo $email_subj
+#	extract_mail $email_num && echo done
 }
 
 #***************************************************
