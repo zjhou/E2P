@@ -12,21 +12,30 @@
 #      3. 更改文章
 #      4. 查询博博客信息
 #
-#备注：该脚本作为mail客户端的钩子，将被自动调用。
+#备注：该脚本作为Crontab的例行脚本,将被自动调用。
+#***************************************************
+
+
+
 #***************************************************
 
 global_vars() {
-	
+	#管理员白名单	
 	global_white_list=("wintrace@outlook.com" "313721293@qq.com")		
 
+	#临时文件存放路径，不能为空
 	global_tmpbox="$HOME/tmpbox"
 
+	#本地静态博客根目录
 	global_local_blog="$HOME/local/blog"
 
+	#本地静态博客的文本目录
 	global_local_posts="$global_local_blog/source/_posts"
 
+	#本地存放静态博客渲染成网页文件的目录
 	global_local_htmls="$global_local_blog/public"
 
+	#服务器网站文档根目录
 	global_site_blog="$HOME/site/blog"
 		
 		
@@ -110,7 +119,7 @@ EOF
 # $1   | 邮件序号
 #------+------------------
 del_mail() {
-	mail -N << EOF
+	mail << EOF
 	d $1
 EOF
 }
@@ -138,7 +147,7 @@ update() {
 add() {
 	#注意！提取第一行为标题。所有邮件正文第一行不能为空。
 	local title=`cat $global_tmpbox/body.txt | awk 'NR == 1 {print}'`
-	echo -e "title: $title\n---\n" >> $global_local_posts/$title.md
+	echo -e "title: $title\n---\n" > $global_local_posts/$title.md
 
 	#邮件除第一行，都将作为正文。
 	cat $global_tmpbox/body.txt | awk 'NR != 1 {print}' >> $global_local_posts/$title.md
@@ -147,16 +156,33 @@ add() {
 	rm -r $global_site_blog/*
 	cp -R $global_local_htmls/* $global_site_blog/
 
-	echo "博文《$title》部署成功，您可以刷新网页查看。" | mail -s "部署成功" z
+	echo "博文《$title》部署成功，您可以刷新网页查看。" \
+	| mail -s "部署成功" ${global_white_list[0]}
 }
 
+
+#列出所有博文的目录
+#*API函数*
+list() {
+	#设置ls输出的时间格式，并按时间排序，最近的在前。
+	ls -lt --time-style=+"%Y/%m/%d" $global_local_posts \
+	| awk 'NR!=1 {gsub(/\.md/,"",$0);printf("%10s 《%s》\n",$6, $7)}' \
+	| mail -s "博文列表" ${global_white_list[0]} #将结果通过邮件回传给管理员
+}
 #****主函数****
 #为了提高程序可读性，统一在主函数调用该脚本里其他函数
 MAIN (){
+	mail -e || exit
+
+	#激活全局变量
 	global_vars
 
+	#
 	email_num=`check_sender`
 	[[ -z $email_num ]] && exit
+
+	#设置编码，否则Crontab调用的时候会乱码。
+	export LANG="en_US.UTF-8"
 
 
 	extract_mail $email_num
@@ -166,6 +192,9 @@ MAIN (){
 	if [ "$email_subj" == "post" ]
 	then
 		add
+	elif [ "$email_subj" == "list" ]
+	then 
+		list
 	fi
 
 	del_mail $email_num
@@ -176,3 +205,4 @@ MAIN (){
 #如果要修改，修改MAIN()函数。***********************
 MAIN #**********************************************
 #***************************************************
+#******************************************TEST AREA
