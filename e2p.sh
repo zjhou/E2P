@@ -23,6 +23,12 @@ global_vars() {
 	#管理员白名单	
 	global_white_list=("wintrace@outlook.com" "313721293@qq.com")		
 
+	#默认管理员
+	global_default_manager=${global_white_list[0]}
+
+	#支持的命令集
+	global_cmd_set=("发布" "删除" "目录")
+
 	#临时文件存放路径，不能为空
 	global_tmpbox="$HOME/tmpbox"
 
@@ -45,7 +51,7 @@ global_vars() {
 #*工具函数*
 #-------------------------
 # 参数   描述
-# $1     待匹配的用户
+#  $1     待匹配的用户
 #-------------------------
 match_white_list() {
 	for user in ${global_white_list[@]}; do
@@ -58,14 +64,35 @@ match_white_list() {
 	return 1
 }
 
-#检查邮件发送者是否在白名单中，如果在，返回其邮件编号。为真。
+
+#判断元素是否在数组中
+#*工具函数*
+#-------------------------
+# 参数         描述
+#  $1           待匹配的元素
+#  ${array[@]}  待匹配的元素
+#-------------------------
+is_in() {
+	local args=($*)
+	local A=(${args[@]:1:$((${#args[@]}-1))})
+
+	for ele in ${A[@]}; do
+		if [ "$1" == "$ele" ];then
+			return 0
+		fi
+	done
+	return 1
+}
+
+# 1. 检查邮件发送者是否在白名单中，
+# 2. 检查发送者是否发来了管理邮件。
 #*工具函数*
 #如果不在返回假。
 #--------------------------------------
 #    返回值   描述
-#     1       检测失败，无管理员邮件
-#     0       检测成功，有管理员邮件
-# $(($i+1))   管理员邮件的序号
+#      1       检测失败，无管理员邮件
+#      0       检测成功，有管理员邮件
+#  $(($i+1))   管理员邮件的序号
 #--------------------------------------
 check_sender() {
 	#通过在配置文件~/.mailrc或/etc/nail.rc中设置headline的值
@@ -75,9 +102,13 @@ check_sender() {
 	#第二个字段的值是发件人的地址。
 	#第三个字段的值是邮件主题。
 	local user=(`mail -H | awk '{print $2}'`)
+	local subj=(`mail -H | awk '{print $3}'`)
+
 	local len=${#user[@]}
 	for ((i = 0; i < $len; i++)); do
-		match_white_list ${user[$i]} && echo $(($i+1)) && return 0
+		is_in ${user[$i]} ${global_white_list[@]} && \
+		is_in ${subj[$i]} ${global_cmd_set[@]} && \
+		echo $(($i+1)) && return 0
 	done
 	return 1
 }
@@ -86,8 +117,7 @@ check_sender() {
 #*工具函数*
 #-------------------------
 # 参数   描述
-#-------------------------
-# $1     邮件序号
+#  $1     邮件序号
 #-------------------------
 
 extract_mail() {
@@ -111,7 +141,7 @@ EOF
 #*工具函数*
 #-------------------------
 # 参数   描述
-# $1     邮件序号
+#  $1     邮件序号
 #-------------------------
 del_mail() {
 	mail << EOF
@@ -123,15 +153,25 @@ EOF
 #*工具函数*
 #-------------------------
 # 参数   描述
-# $1     邮件序号
+#  $1     邮件序号
 #-------------------------
 get_subject() {
 	local subj=`mail -H | awk '{if($1 == "'$1'") print $3}'`
 	echo $subj
 }
 
+#设置当前管理员
+#*工具函数*
+#-------------------------
+# 参数   描述
+#  $1     邮件序号
+#-------------------------
+set_manager() {
+	global_default_manager=`mail -H | awk '{if($1 == "'$1'") print $2}'`
+}
+
 #重新从markdown生成html文件
-#*API函数*
+# * API函数
 update() {
 	cd $global_local_blog && hexo clean --silent && hexo g --silent
 	rm -r $global_site_blog/*
@@ -153,7 +193,7 @@ add() {
 	update
 
 	echo "博文《$title》部署成功，您可以刷新网页查看。" \
-	| mail -s "部署成功" ${global_white_list[0]}
+	| mail -s "部署成功" $global_default_manager
 }
 
 
@@ -163,7 +203,7 @@ list() {
 	#设置ls输出的时间格式，并按时间排序，最近的在前。
 	ls -lt --time-style=+"%Y/%m/%d" $global_local_posts \
 	| awk 'NR!=1 {gsub(/\.md/,"",$0);printf("%10s 《%s》\n",$6, $7)}' \
-	| mail -s "博文列表" ${global_white_list[0]} #将结果通过邮件回传给管理员
+	| mail -s "博文列表" $global_default_manager #将结果通过邮件回传给管理员
 }
 
 
@@ -206,7 +246,7 @@ del() {
 	cat $global_tmpbox/del_err.log >> $global_tmpbox/del.log
 
 	cat $global_tmpbox/del.log \
-	| mail -s "操作日志" ${global_white_list[0]} #将结果通过邮件回传给管理员
+	| mail -s "操作日志" $global_default_manager #将结果通过邮件回传给管理员
 }
 
 #****主函数****
@@ -215,15 +255,20 @@ MAIN (){
 	#检测邮箱里是否有邮件。
 	mail -e || exit
 
+	#设置编码，否则Crontab调用的时候会乱码。
+	export LANG="en_US.UTF-8"
+
 	#激活全局变量。
 	global_vars
 
 	#获取管理员邮件序号。
 	email_num=`check_sender`
+
+	#检测是否有管理员邮件。
 	[[ -z $email_num ]] && exit
 
-	#设置编码，否则Crontab调用的时候会乱码。
-	export LANG="en_US.UTF-8"
+	#设置当前管理员。
+	set_manager $email_num
 
 	#提取邮件正文。
 	extract_mail $email_num
@@ -231,15 +276,13 @@ MAIN (){
 	email_subj=`get_subject $email_num`
 
 	case "$email_subj" in
-		"post" ) add ;;
-		"list" ) list ;;
-		"del"  ) del ;;
-		"*"    ) del_mail $email_num && ext;;
+		"发布" ) add ;;
+		"删除" ) del ;;
+		"目录" ) list ;;
 	esac
 
 	del_mail $email_num
 }
-
 
 #***************************************************
 #***************************************************
@@ -247,3 +290,4 @@ MAIN (){
 MAIN #**********************************************
 #***************************************************
 #***************************************************
+#global_vars
