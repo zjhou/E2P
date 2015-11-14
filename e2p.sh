@@ -38,6 +38,9 @@ global_vars() {
 	#本地静态博客的文本目录
 	global_local_posts="$global_local_blog/source/_posts"
 
+	#本地静态博客的图片目录
+	global_local_imgs="$global_local_blog/source/imgs"
+
 	#本地存放静态博客渲染成网页文件的目录
 	global_local_htmls="$global_local_blog/public"
 
@@ -46,24 +49,6 @@ global_vars() {
 		
 		
 }
-
-#如果待匹配的用户在白名单中则返回真，否则返回假
-#*工具函数*
-#-------------------------
-# 参数   描述
-#  $1     待匹配的用户
-#-------------------------
-match_white_list() {
-	for user in ${global_white_list[@]}; do
-		if [ "$1" == "$user" ]
-		then 
-			#注意！0表示匹配成功。
-			return 0
-		fi
-	done
-	return 1
-}
-
 
 #判断元素是否在数组中
 #*工具函数*
@@ -121,20 +106,43 @@ check_sender() {
 #-------------------------
 
 extract_mail() {
+	#邮件正文终止分割线。
+	local cutline="-end-"
+	local hasAtta=0
+
+	#保存一份副本。提取附件。
+	mail << EOF
+		copy $1 $global_tmpbox/MIME.txt
+		q
+EOF
+
+	#处理附件部分
+	#判断是否有附件啊，有则解压，并移到相应目录下。
+	#如果有附件，邮件正文终止分割线会变化。因为多了附件部分。
+	#当前只考虑了图片附件。
+	munpack -C $global_tmpbox MIME.txt | grep "Did not find anything" || \
+	hasAtta=1 # 1 表示有附件。
+	if [ "$hasAtta" == "1" ] 
+	then
+		cutline="Part 2:" 
+		mv $global_tmpbox/*.jpg $global_local_imgs
+		mv $global_tmpbox/*.png $global_local_imgs 
+	fi
+
+
+	#提取正文部分。
 	{
 		mail << EOF
 		p $1
 		echo " "
-		echo "-end-"
+		echo $cutline
 		q
 EOF
-		#AWK根据邮件格式，提取正文内容。无附件。将其保存在$global_tmpbox/body.txt中。
+		#AWK根据邮件格式，提取正文内容。将其保存在$global_tmpbox/body.txt中。
 		#SED删除第一行空行。
-	} | awk '/Content-Type: text\/plain/, /-end-/{if(i>1) print x; x=$0; i++}'\
+	} | awk '/Content-Type: text\/plain/, /'"$cutline"'/{if(i>1) print x; x=$0; i++}'\
 	  | sed '1d' \
 	  > $global_tmpbox/body.txt  	
-
-	#保存一份副本。可以提取附件，同时将邮件移出了邮箱防止重复解析。
 }
 
 #删除邮件
@@ -281,6 +289,8 @@ MAIN (){
 		"目录" ) list ;;
 	esac
 
+	#清理临时文件，以及移除已经处理过的管理邮件
+	rm $global_tmpbox/*
 	del_mail $email_num
 }
 
