@@ -20,8 +20,16 @@
 #*引用外部文件*
 #***************************************************
 
-#如果不用绝对路径，crontab执行时找不到。
-. /home/zjh/bin/E2P/UTILS_LIB
+#注意！如果不用绝对路径，crontab执行时找不到。
+include() {
+	#引用工具库
+	. /home/zjh/bin/E2P/UTILS_LIB.sh
+
+	#引用消息库
+	. /home/zjh/bin/E2P/MAIL_MSGS.sh
+
+}
+
 
 #***************************************************
 #*全局变量*
@@ -35,7 +43,7 @@ global_vars() {
 	global_default_manager=${global_white_list[0]}
 
 	#支持的命令集，如果邮件主题不在命令集中，脚本将不做处理。
-	global_cmd_set=("发布" "删除" "目录")
+	global_cmd_set=("发布" "删除" "目录" "重置" "恢复")
 
 	#临时文件存放路径，不能为空
 	global_tmpbox="$HOME/tmpbox"
@@ -261,6 +269,48 @@ del() {
 	| mail -s "操作日志" $global_default_manager #将结果通过邮件回传给管理员
 }
 
+reset() {
+
+	cd $global_local_posts 
+	local opts=""
+
+	if [ -f $global_local_posts/.posts.bkp.tar ]
+	then
+		#已有归档文件，则把新博文追加到归档文件中。
+		#tar参数u表示只追加新增的文件到归档中。
+		opts=uf
+	else 
+		#第一次重置，没有归档文件，则创建它。
+		#tar参数c表示创建新归档。
+		opts=cf
+	fi
+
+	tar $opts .posts.bkp.tar *.md && rm *.md && \
+	update && echo -e $reset_msg \
+	| mail -s "重置完成" $global_default_manager 
+
+	
+}
+
+recovery() {
+	cd $global_local_posts && \
+	tar xf .posts.bkp.tar 
+	&& update && echo $recov_msg | mail -s "恢复完成" $global_default_manager 
+}
+
+#根据邮件主题调用不同的API函数
+#参数  描述
+# $1    邮件主题
+multipler() {
+	case "$1" in
+		"发布" ) add ;;
+		"删除" ) del ;;
+		"目录" ) list ;;
+		"重置" ) reset ;;
+		"恢复" ) recovery ;;
+	esac
+}
+
 #***************************************************
 #*MAIN函数*
 #***************************************************
@@ -274,8 +324,9 @@ MAIN (){
 	#设置编码，否则Crontab调用的时候会乱码。
 	export LANG="en_US.UTF-8"
 
-	#激活全局变量。
+	#激活全局变量及外部文件
 	global_vars
+	include
 
 	#获取管理员邮件序号。
 	email_num=`check_sender`
@@ -286,16 +337,14 @@ MAIN (){
 	#设置当前管理员。
 	set_manager $email_num
 
-	#提取邮件正文。
+	#提取邮件。
 	extract_mail $email_num
 
+	#获取邮件主题。
 	email_subj=`get_subject $email_num`
 
-	case "$email_subj" in
-		"发布" ) add ;;
-		"删除" ) del ;;
-		"目录" ) list ;;
-	esac
+	#根据主题运行不同命令
+	multipler $email_subj
 
 	#清理临时文件，以及移除已经处理过的管理邮件
 	rm $global_tmpbox/*
@@ -308,3 +357,5 @@ MAIN (){
 MAIN #**********************************************
 #***************************************************
 #***************************************************
+#include
+#global_vars
