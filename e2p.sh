@@ -34,14 +34,14 @@ include() {
 #***************************************************
 
 global_vars() {
+	#支持的命令集，如果邮件主题不在命令集中，脚本将不做处理。
+	global_cmd_set=("发布" "删除" "目录" "重置" "恢复" "帮助")
+
 	#管理员白名单	
 	global_white_list=("wintrace@outlook.com" "313721293@qq.com")		
 
 	#默认管理员
 	global_default_manager=${global_white_list[0]}
-
-	#支持的命令集，如果邮件主题不在命令集中，脚本将不做处理。
-	global_cmd_set=("发布" "删除" "目录" "重置" "恢复")
 
 	#临时文件存放路径，不能为空
 	global_tmpbox="$HOME/tmpbox"
@@ -52,6 +52,9 @@ global_vars() {
 	#博客网址
 	global_blog_url="zjhou.com/blog"
 
+	#博客图片目录
+	global_blog_imgs="/blog/imgs/"
+
 	#本地静态博客根目录
 	global_local_blog="$HOME/local/blog"
 
@@ -61,7 +64,7 @@ global_vars() {
 	#本地静态博客的图片目录
 	global_local_imgs="$global_local_blog/source/imgs"
 
-	#本地存放静态博客渲染成网页文件的目录
+	#本地存放静态博客渲染成网页文件的目
 	global_local_htmls="$global_local_blog/public"
 
 	#服务器网站文档根目录
@@ -130,6 +133,14 @@ EOF
 	if [ "$hasAtta" == "1" ] 
 	then
 		cutline="Part 2:" 
+
+		#维护一个图片附件清单。
+		#可供其他模块判断是否有附件
+		#同时方便引用附件。
+		cd $global_tmpbox
+		ls -t *.jpg >> imgs.list
+		ls -t *.png >> imgs.list 
+
 		mv $global_tmpbox/*.jpg $global_local_imgs
 		mv $global_tmpbox/*.png $global_local_imgs 
 	fi
@@ -198,6 +209,7 @@ update() {
 # * 此时邮件内容必须为准备发布的博文。
 # * 格式：第一行为博文的名字，不能为空行。
 add() {
+#***二次编辑模块***
 	#注意！提取第一行为标题。所有邮件正文第一行不能为空。
 	local title=`cat $global_tmpbox/body.txt | awk 'NR == 1 {print}'`
 
@@ -207,8 +219,23 @@ add() {
 	#邮件除第一行，都将作为正文。
 	cat $global_tmpbox/body.txt | awk 'NR != 1 {print}' >> $global_local_posts/$title.md
 
-	update
+	#判断是否有图片附件。
+	#如果有则自动追加标签到博文。
+	if [ -f $global_tmpbox/imgs.list ]
+	then
+		cd $global_tmpbox
+		local imgs=(`cat imgs.list`)
+		local _img_tag="<img src='$global_blog_imgs"
+		local img_tag_="' />"
 
+		for img in ${imgs[@]}; do
+			echo $_img_tag$img$img_tag_ >> $global_local_posts/$title.md
+		done
+	fi
+
+
+#***更新博客通知管理员***
+	update
 	echo "博文《$title》部署成功，您可以点击查看：http://$global_blog_url" \
 	| mail -s "部署成功" $global_default_manager
 }
@@ -296,6 +323,10 @@ recovery() {
 	update && echo $recov_msg | mail -s "恢复完成" $global_default_manager 
 }
 
+doc() {
+	echo -e "$help_msg" | mail -s "帮助文档" $global_default_manager 
+}
+
 #根据邮件主题调用不同的API函数
 #参数  描述
 # $1    邮件主题
@@ -307,8 +338,8 @@ switch() {
 		"目录" ) list ;;
 		"重置" ) reset ;;
 		"恢复" ) recovery ;;
+		"帮助" ) doc ;;
 	esac
-
 }
 
 #***************************************************
