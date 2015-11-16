@@ -20,57 +20,13 @@
 #*引用外部文件*
 #***************************************************
 include() {
+	#引用全局配置
+	. VARS_CONF
 	#引用工具库
 	. UTILS_LIB
 
 	#引用消息库
 	. MAIL_MSGS
-
-}
-
-
-#***************************************************
-#*全局变量*
-#***************************************************
-
-global_vars() {
-	#支持的命令集，如果邮件主题不在命令集中，脚本将不做处理。
-	global_cmd_set=("发布" "删除" "目录" "重置" "恢复" "帮助")
-
-	#管理员白名单	
-	global_white_list=("wintrace@outlook.com" "313721293@qq.com")		
-
-	#默认管理员
-	global_default_manager=${global_white_list[0]}
-
-	#临时文件存放路径，不能为空
-	global_tmpbox="$HOME/tmpbox"
-
-	#博客备份目录。
-	global_blog_bkp="$HOME/blogbkp"
-
-	#博客网址
-	global_blog_url="zjhou.com/blog"
-
-	#博客图片目录
-	global_blog_imgs="/blog/imgs/"
-
-	#本地静态博客根目录
-	global_local_blog="$HOME/local/blog"
-
-	#本地静态博客的文本目录
-	global_local_posts="$global_local_blog/source/_posts"
-
-	#本地静态博客的图片目录
-	global_local_imgs="$global_local_blog/source/imgs"
-
-	#本地存放静态博客渲染成网页文件的目
-	global_local_htmls="$global_local_blog/public"
-
-	#服务器网站文档根目录
-	global_site_blog="$HOME/site/blog"
-		
-		
 }
 
 #***************************************************
@@ -138,8 +94,10 @@ EOF
 		#可供其他模块判断是否有附件
 		#同时方便引用附件。
 		cd $global_tmpbox
-		ls -t *.jpg >> imgs.list
-		ls -t *.png >> imgs.list 
+
+		#加上参数rt按时间逆序排列，将使得最先引用的附件出现在imgs.list前边
+		ls -rt *.jpg >> imgs.list
+		ls -rt *.png >> imgs.list 
 
 		mv $global_tmpbox/*.jpg $global_local_imgs
 		mv $global_tmpbox/*.png $global_local_imgs 
@@ -229,7 +187,7 @@ add() {
 		local img_tag_="' />"
 
 		for img in ${imgs[@]}; do
-			echo $_img_tag$img$img_tag_ >> $global_local_posts/$title.md
+			echo -n $_img_tag$img$img_tag_ >> $global_local_posts/$title.md
 		done
 	fi
 
@@ -253,25 +211,47 @@ list() {
 }
 
 
+#删除文章引用的图片。
+#注意！此函数硬编码了文章目录$global_local_posts
+#以及图片目录$global_local_imgs,不具有通用性。只用作del辅助函数。
+#请勿在其他地方调用！！！
+#参数  描述 
+#  $1 	文章标题。
+del_img_ref() {
+	#首先粗略判断文章是否引用了图片。
+	grep "<img*" $global_local_posts/$1.md || return 0 
+
+	#正则匹配出所有引用的图片标题。
+	local imgs=(`grep -oE "[-_0-9a-zA-Zu4e00-u9fa5]+\.(jpg|png|gif)" $global_local_posts/$1.md`)
+
+	#遍历删除图片
+	for img in ${imgs[@]};do
+		[[ -f $global_local_imgs/$img ]] && \
+		rm "$global_local_imgs/$img"
+	done
+}
+
 #批量删除博文
 # * 邮件正文内容必须为准备删除的博文名字。
 # * 格式必须为一行一个条目。
 del() {
 	#获取要删除的目标博文并初始化操作标识
-	local target=(`cat $global_tmpbox/body.txt | awk '{print}'`)
+	local target=(`cat $global_tmpbox/body.txt`)
 	local error=0
 	local norm=0
 
 	#静默创建日志文件
 	{ 
-		echo -e "---操作日志---" > $global_tmpbox/del.log
-		echo -e "成功删除的博文：" > $global_tmpbox/del_norm.log
-		echo -e "无法删除的博文（请检查文件名是否正确）：" > $global_tmpbox/del_err.log
+		echo -e "*操作日志*" > $global_tmpbox/del.log
+		echo -e "_____\n成功删除的博文：" > $global_tmpbox/del_norm.log
+		echo -e "_____\n无法删除的博文（请检查文件名是否正确）：" > $global_tmpbox/del_err.log
 	} &> /dev/null
 
 	#遍历博文
 	for file in ${target[@]}; do
 		if [ -e $global_local_posts/$file.md ]; then
+			#删除引用图片。
+			del_img_ref $file
 			rm $global_local_posts/$file.md	
 			[[ $norm -eq 0 ]] && norm=1
 			echo -e "《$file》" >> $global_tmpbox/del_norm.log
@@ -353,10 +333,8 @@ MAIN (){
 	mail -e || exit
 
 	#激活全局变量及外部文件
-	global_vars
-
 	include
-
+	global_vars
 
 	#获取管理员邮件序号。
 	email_num=`check_sender`
