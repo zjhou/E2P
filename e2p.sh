@@ -19,14 +19,12 @@
 #***************************************************
 #*引用外部文件*
 #***************************************************
-
-#注意！如果不用绝对路径，crontab执行时找不到。
 include() {
 	#引用工具库
-	. /home/zjh/bin/E2P/UTILS_LIB.sh
+	. UTILS_LIB
 
 	#引用消息库
-	. /home/zjh/bin/E2P/MAIL_MSGS.sh
+	. MAIL_MSGS
 
 }
 
@@ -294,14 +292,15 @@ reset() {
 
 recovery() {
 	cd $global_local_posts && \
-	tar xf .posts.bkp.tar 
-	&& update && echo $recov_msg | mail -s "恢复完成" $global_default_manager 
+	tar xf .posts.bkp.tar && \
+	update && echo $recov_msg | mail -s "恢复完成" $global_default_manager 
 }
 
 #根据邮件主题调用不同的API函数
 #参数  描述
 # $1    邮件主题
-multipler() {
+switch() {
+
 	case "$1" in
 		"发布" ) add ;;
 		"删除" ) del ;;
@@ -309,6 +308,7 @@ multipler() {
 		"重置" ) reset ;;
 		"恢复" ) recovery ;;
 	esac
+
 }
 
 #***************************************************
@@ -321,12 +321,11 @@ MAIN (){
 	#检测邮箱里是否有邮件。
 	mail -e || exit
 
-	#设置编码，否则Crontab调用的时候会乱码。
-	export LANG="en_US.UTF-8"
-
 	#激活全局变量及外部文件
 	global_vars
+
 	include
+
 
 	#获取管理员邮件序号。
 	email_num=`check_sender`
@@ -343,8 +342,9 @@ MAIN (){
 	#获取邮件主题。
 	email_subj=`get_subject $email_num`
 
+
 	#根据主题运行不同命令
-	multipler $email_subj
+	switch $email_subj
 
 	#清理临时文件，以及移除已经处理过的管理邮件
 	rm $global_tmpbox/*
@@ -357,5 +357,3 @@ MAIN (){
 MAIN #**********************************************
 #***************************************************
 #***************************************************
-#include
-#global_vars
