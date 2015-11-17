@@ -34,4 +34,6 @@ global_vars() {
 	global_site_blog="$HOME/site/blog"
 	#邮件通知开关，如果设置为off, 将不会发送邮件通知给用户
 	global_mail_info="on"
+	#e2p.sh的目录
+	global_e2p_path="$HOME/bin/E2P/"
 }

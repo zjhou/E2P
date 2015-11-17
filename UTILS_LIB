@@ -39,6 +39,7 @@ is_in() {
 #  $2           变量值
 #-------------------------
 set_var() {
+	cd $global_e2p_path
 	grep "$1" VARS_CONF && \
 	sed -i '/'$1'/s/\"[-_0-9a-zA-Z]*\"/'\"$2\"'/' VARS_CONF
 	return 0
