@@ -195,6 +195,7 @@ add() {
 
 #***更新博客通知管理员***
 	update
+	is_mail_on && \
 	echo "博文《$title》部署成功，您可以点击查看：http://$global_blog_url" \
 	| mail -s "部署成功" $global_default_manager
 }
@@ -271,10 +272,13 @@ del() {
 	[[ $error -eq 1 ]] && \
 	cat $global_tmpbox/del_err.log >> $global_tmpbox/del.log
 
+	is_mail_on && \
 	cat $global_tmpbox/del.log \
 	| mail -s "操作日志" $global_default_manager #将结果通过邮件回传给管理员
 }
 
+#API
+#将所有博文归档后，清空博客里所有博文。
 reset() {
 
 	cd $global_local_posts 
@@ -292,21 +296,40 @@ reset() {
 	fi
 
 	tar $opts .posts.bkp.tar *.md && rm *.md && \
-	update && echo -e $reset_msg \
+	update && \
+	is_mail_on && echo -e $reset_msg \
 	| mail -s "重置完成" $global_default_manager 
 
 	
 }
 
+#API
+#将所有博文从归档中解压，并部署到博客。
 recovery() {
 	cd $global_local_posts && \
 	tar xf .posts.bkp.tar && \
-	update && echo $recov_msg | mail -s "恢复完成" $global_default_manager 
+	update && \
+	is_mail_on && echo $recov_msg | mail -s "恢复完成" $global_default_manager 
 }
 
+#API
+#返回帮助文档
 doc() {
 	echo -e "$help_msg" | mail -s "帮助文档" $global_default_manager 
 }
+
+#API
+#改变邮件通知状态。
+#如果邮件通知开，服务器会用邮件通知用户每次操作的结果
+#如果邮件通知关，则不会返回任何通知邮件。
+chage_info_state() {
+	#如果通知开，则关闭
+	is_mail_on && set_var $global_mail_info off && return 0
+
+	#否则打开。
+	set_var $global_mail_info on
+}
+
 
 #根据邮件主题调用不同的API函数
 #参数  描述
@@ -320,6 +343,7 @@ switch() {
 		"重置" ) reset ;;
 		"恢复" ) recovery ;;
 		"帮助" ) doc ;;
+		"通知" ) chage_info_state ;;
 	esac
 }
 
@@ -367,3 +391,5 @@ MAIN (){
 MAIN #**********************************************
 #***************************************************
 #***************************************************
+#include
+#global_vars

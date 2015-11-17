@@ -31,4 +31,24 @@ is_in() {
 	return 1
 }
 
+#更改全局变量的值
+#全局变量配置文件默认为VAR_CONF
+#-------------------------
+# 参数         描述
+#  $1           变量名
+#  $2           变量值
+#-------------------------
+set_var() {
+	grep "$1" VARS_CONF && \
+	sed -i '/'$1'/s/\"[-_0-9a-zA-Z]*\"/'\"$2\"'/' VARS_CONF
+	return 0
+}
 
+is_mail_on() {
+	if [ "$global_mail_info" == "on" ]
+	then 
+		return 0
+	else
+		return 1
+	fi
+}
