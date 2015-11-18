@@ -179,17 +179,24 @@ add() {
 	cat $global_tmpbox/body.txt | awk 'NR != 1 {print}' >> $global_local_posts/$title.md
 
 	#判断是否有图片附件。
-	#如果有则自动追加标签到博文。
+	#如果有则自动替换成html标签或追加标签到博文。
 	if [ -f $global_tmpbox/imgs.list ]
 	then
 		cd $global_tmpbox
 		local imgs=(`cat imgs.list`)
-		local _img_tag="<img src='$global_blog_imgs"
-		local img_tag_="' />"
+		local num_of_imgs=${#imgs[@]}
 
-		for img in ${imgs[@]}; do
-			echo -n $_img_tag$img$img_tag_ >> $global_local_posts/$title.md
-		done
+		#如果找到了图片占位标志(如[图1：57])则替换成图片标签，否则追加标签
+		cd $global_local_posts 
+		grep "图[0-9]：" $title.md 
+
+		if [ $? -eq 0 ]
+		then 
+			img_tag_render $title.md $global_blog_imgs ${imgs[@]} 
+		else
+			img_tag_appender $title.md $global_blog_imgs ${imgs[@]} 
+		fi
+			
 	fi
 
 

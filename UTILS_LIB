@@ -39,7 +39,6 @@ is_in() {
 #  $2           变量值
 #-------------------------
 set_var() {
-	cd $global_e2p_path
 	grep "$1" VARS_CONF && \
 	sed -i '/'$1'/s/\"[-_0-9a-zA-Z]*\"/'\"$2\"'/' VARS_CONF
 	return 0
@@ -53,3 +52,71 @@ is_mail_on() {
 		return 1
 	fi
 }
+
+#把图片占位标识替换成，html标签。
+#定义：
+#图片占位标识是指形如
+#
+#  图1：79
+#
+#的字符串。
+#  
+# 1. 冒号是中文冒号！
+# 2. ”图“后边紧跟一位数字/[0-9]/
+# 3. 冒号后紧跟一位或两位数字/[0-9]+/
+#
+# $1中的字符串”图1：79“ 将被替换成<img width='79%' src='/$2/${array[0]}' >
+# 参数说明如下：
+#-------------------------
+# 参数         描述
+#  $1           待替换的文本
+#  $2           图片超链接目录
+#  ${array[@]}  图片数组
+#-------------------------
+img_tag_render() {
+	#获取参数
+	local args=($*)
+
+	#从参数数组中提取图片数组并求得图片数目
+	local imgs=(${args[@]:2:$((${#args[@]}-2))})
+	local num_of_imgs=${#imgs[@]}
+
+	#构造html标签
+	local _img_tag="<img "
+	local img_ref="src='$2/"
+	local img_tag_="'>"
+
+	for ((i = 0; i < $num_of_imgs; i++));do
+		local img_width="width='`grep -oE "图$(($i+1))：[0-9]+" $1 | grep -oE [0-9]+$`%'"
+		#组装标签。
+		local _img_tag_="$_img_tag$img_width $img_ref${imgs[$i]}$img_tag_"
+		#替换
+		#注意！sed正则支持任意分隔符，第一次使用要加反斜杠，除非分隔符是反斜杠
+		#因为用斜杠作分隔符将会和变量$_img_tag_中的路径斜杠冲突。造成语法错误。
+		sed -i "\#图$(($i+1))#s#图$(($i+1))：[0-9]*#${_img_tag_}#" $1
+	done
+}
+
+#把图片html标签追加到文本末尾
+#-------------------------
+# 参数         描述
+#  $1           待追加的文本
+#  $2           图片超链接目录
+#  ${array[@]}  图片名字数组(数组元素是带后缀图片名字符串,eg. test.jpg)
+#-------------------------
+img_tag_appender() {
+	local args=($*)
+
+	local imgs=(${args[@]:2:$((${#args[@]}-2))})
+
+	#构造图片标签
+	local _img_tag="<img "
+	local img_ref="src='$2"
+	local img_tag_="' />"
+
+	for img in ${imgs[@]}; do
+		#将组装好的标签追加到文本中。
+		echo -n $_img_tag$img_ref$img$img_tag_ >> $1
+	done
+}
+
