@@ -9,7 +9,9 @@
 
 global_vars() {
 	#支持的命令集，如果邮件主题不在命令集中，脚本将不做处理。
-	global_cmd_set=("发布" "删除" "目录" "重置" "恢复" "帮助" "通知")
+	global_cmd_set=("发布" "删除" "目录" \
+					"隐藏" "恢复" "备份" \
+					"帮助" "通知" "空间" )
 	#管理员白名单	
 	global_white_list=("wintrace@outlook.com" "313721293@qq.com")		
 	#默认管理员
@@ -33,7 +35,7 @@ global_vars() {
 	#服务器网站文档根目录
 	global_site_blog="$HOME/site/blog"
 	#邮件通知开关，如果设置为off, 将不会发送邮件通知给用户
-	global_mail_info="on"
+	global_mail_info="off"
 	#e2p.sh的目录
 	global_e2p_path="$HOME/bin/E2P/"
 }

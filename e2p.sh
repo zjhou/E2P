@@ -11,6 +11,7 @@
 #      2. 删除文章
 #      3. 更改文章
 #      4. 查询博博客信息
+#      5. ..详见帮助文档..
 #
 #备注：该脚本作为Crontab的例行脚本,将被自动调用。
 #***************************************************
@@ -120,27 +121,6 @@ EOF
 	  > $global_tmpbox/body.txt  	
 }
 
-#删除邮件
-#-------------------------
-# 参数   描述
-#  $1     邮件序号
-#-------------------------
-del_mail() {
-	mail << EOF
-	d $1
-EOF
-}
-
-#提取邮件主题（不支持空格）
-#-------------------------
-# 参数   描述
-#  $1     邮件序号
-#-------------------------
-get_subject() {
-	local subj=`mail -H | awk '{if($1 == "'$1'") print $3}'`
-	echo $subj
-}
-
 #设置当前管理员
 #-------------------------
 # 参数   描述
@@ -160,8 +140,9 @@ set_manager() {
 #重新从markdown生成html文件
 update() {
 	cd $global_local_blog && hexo clean --silent && hexo g --silent
-	#参数-u表示只拷贝更新的文件。
-	cp -uR $global_local_htmls/* $global_site_blog/
+
+	rm -r $global_site_blog/*
+	cp -R $global_local_htmls/* $global_site_blog/
 }
 
 #把邮件内容作为博文。发布到博客。
@@ -286,28 +267,25 @@ del() {
 
 #API
 #将所有博文归档后，清空博客里所有博文。
-reset() {
-
+hide() {
 	cd $global_local_posts 
-	local opts=""
-
-	if [ -f $global_local_posts/.posts.bkp.tar ]
-	then
-		#已有归档文件，则把新博文追加到归档文件中。
-		#tar参数u表示只追加新增的文件到归档中。
-		opts=uf
-	else 
-		#第一次重置，没有归档文件，则创建它。
-		#tar参数c表示创建新归档。
-		opts=cf
-	fi
-
-	tar $opts .posts.bkp.tar *.md && rm *.md && \
+	tar uf .posts.bkp.tar *.md && rm *.md && \
 	update && \
 	is_mail_on && echo -e $reset_msg \
 	| mail -s "重置完成" $global_default_manager 
+}
 
-	
+#API
+#备份整个博客资源。移到备份目录下。
+backup() {
+	#备份整个博客
+	local time_stamp=`date +"%Y-%m-%d"`
+
+	cd $global_local_blog/source/
+	tar uf blog.bkp$time_stamp.tar * && mv blog.bkp$time_stamp.tar $global_blog_bkp
+
+	is_mail_on && echo -e "$time_stamp\n$bkp_msg" \
+	| mail -s "备份完成" $global_default_manager
 }
 
 #API
@@ -323,6 +301,19 @@ recovery() {
 #返回帮助文档
 doc() {
 	echo -e "$help_msg" | mail -s "帮助文档" $global_default_manager 
+}
+
+#API
+#返回博客里所有资源的大小情况。
+#附带服务器空间使用情况。
+res_size() {
+	local local_size=`du -sh $global_local_blog | cut -f1`
+	local site_size=`du -sh $global_site_blog | cut -f1`
+	local server_usage=`df -h | \
+	awk '/^\/dev/ {print "总共: "$2,"已用: "$3"("$5")","剩余: "$4}'`
+
+	echo -e "HEXO系统大小：$local_size\n网页资源大小：$site_size\n服务器空间使用情况：\n$server_usage" \
+	| mail -s "博客资源大小" $global_default_manager 
 }
 
 #API
@@ -342,15 +333,16 @@ chage_info_state() {
 #参数  描述
 # $1    邮件主题
 switch() {
-
 	case "$1" in
 		"发布" ) add ;;
 		"删除" ) del ;;
 		"目录" ) list ;;
-		"重置" ) reset ;;
+		"隐藏" ) hide ;;
 		"恢复" ) recovery ;;
+		"备份" ) backup ;;
 		"帮助" ) doc ;;
 		"通知" ) chage_info_state ;;
+		"空间" ) res_size ;;
 	esac
 }
 
