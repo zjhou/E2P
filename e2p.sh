@@ -188,7 +188,7 @@ add() {
 
 		#如果找到了图片占位标志(如[图1：57])则替换成图片标签，否则追加标签
 		cd $global_local_posts 
-		grep "图[0-9]：" $title.md 
+		grep "图[0-9]%[0-9]*" $title.md 
 
 		if [ $? -eq 0 ]
 		then 
