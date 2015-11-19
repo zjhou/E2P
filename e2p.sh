@@ -98,8 +98,10 @@ EOF
 		cd $global_tmpbox
 
 		#加上参数rt按时间逆序排列，将使得最先引用的附件出现在imgs.list前边
-		ls -rt *.jpg >> imgs.list
-		ls -rt *.png >> imgs.list 
+		ls -rt * | grep -E "*\.(png|jpg|gif)" >> imgs.list
+
+#		ls -rt *.jpg >> imgs.list
+#		ls -rt *.png >> imgs.list 
 
 		mv $global_tmpbox/*.jpg $global_local_imgs
 		mv $global_tmpbox/*.png $global_local_imgs 
@@ -359,6 +361,9 @@ MAIN (){
 	#激活全局变量及外部文件
 	include
 	global_vars
+
+	#先过滤黑名单中垃圾邮件。
+	black_list_filter ${global_black_list[@]}
 
 	#获取管理员邮件序号。
 	email_num=`check_sender`
