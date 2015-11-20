@@ -360,7 +360,6 @@ MAIN (){
 
 	#激活全局变量及外部文件
 	include
-	global_vars
 
 	#先过滤黑名单中垃圾邮件。
 	#black_list_filter ${global_black_list[@]}
@@ -387,6 +386,8 @@ MAIN (){
 	#清理临时文件，以及移除已经处理过的管理邮件
 	rm $global_tmpbox/*
 	del_mail $email_num
+
+	black_list_filter blacklist 
 }
 
 #***************************************************
@@ -396,5 +397,4 @@ MAIN #**********************************************
 #***************************************************
 #***************************************************
 #include
-#global_vars
-#chage_info_state
+#black_list_filter blacklist 
