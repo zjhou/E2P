@@ -363,7 +363,7 @@ MAIN (){
 	global_vars
 
 	#先过滤黑名单中垃圾邮件。
-	black_list_filter ${global_black_list[@]}
+	#black_list_filter ${global_black_list[@]}
 
 	#获取管理员邮件序号。
 	email_num=`check_sender`
