@@ -267,6 +267,33 @@ del() {
 	| mail -s "操作日志" $global_default_manager #将结果通过邮件回传给管理员
 }
 
+edit(){
+	#获取待改动文章的标题&删除标题
+	local title=`sed "1q" $global_tmpbox/body.txt`
+	sed -i '1d' $global_tmpbox/body.txt
+
+	[[ -z $title ]] && \
+	echo $wrong_msg0 | mail -s "编辑失败" $global_default_manager && \
+	return 1
+
+	cd $global_local_posts 
+
+	#检查文件是否存在
+	if [ -f $title.md ]; then
+
+		while read LINE; do
+			sub $title.md $LINE
+		done < $global_tmpbox/body.txt
+
+		update && is_mail_on && echo $done_msg \
+		| mail -s "编辑完成" $global_default_manager 
+
+	else
+		echo $wrong_msg | mail -s "编辑失败" $global_default_manager && \
+		return 1
+	fi
+}
+
 #API
 #将所有博文归档后，清空博客里所有博文。
 hide() {
@@ -339,12 +366,14 @@ switch() {
 		"发布" ) add ;;
 		"删除" ) del ;;
 		"目录" ) list ;;
+		"编辑" ) edit ;;
 		"隐藏" ) hide ;;
-		"恢复" ) recovery ;;
+		"恢复" ) recovery ;; 
 		"备份" ) backup ;;
+		"更新" ) update;; #重新渲染。
 		"帮助" ) doc ;;
 		"通知" ) chage_info_state ;;
-		"空间" ) res_size ;;
+		"空间" ) res_size ;; #空间使用情况。
 	esac
 }
 
