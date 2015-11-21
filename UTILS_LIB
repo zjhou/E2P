@@ -83,7 +83,7 @@ img_tag_render() {
 
 	#构造html标签
 	local _img_tag="<img "
-	local img_ref="src='$2/"
+	local img_ref="src='$2"
 	local img_tag_="'>"
 
 	for ((i = 0; i < $num_of_imgs; i++));do
@@ -123,11 +123,11 @@ img_tag_appender() {
 #删除邮件
 #-------------------------
 # 参数   描述
-#  $1     邮件序号
+#  $*     邮件序号
 #-------------------------
 del_mail() {
 	mail << EOF
-	d $1
+	d $*
 EOF
 }
 
@@ -140,4 +140,26 @@ get_subject() {
 	local subj=`mail -H | awk '{if($1 == "'$1'") print $3}'`
 	echo $subj
 }
+
+#如果收件箱有黑名单中的邮件则删除它
+#-------------------------
+# 参数   描述
+#  $1     黑名单文件，
+#         每行一个黑名单地址关键字
+#-------------------------
+black_list_filter() {
+	local target_num=(`mail -H | grep -f $1 | awk '{print $1}'`)
+	#mail -H | grep -f $1
+	[[ -z $target_num ]] && return 0	
+	del_mail ${target_num[@]}
+}
+
+# 替换文中一个字符串。
+# $1 文本路径
+# $2 old string
+# $3 new string
+sub() {
+	sed -i "s@$2@$3@"  $1
+}
+
 
