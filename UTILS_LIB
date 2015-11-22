@@ -162,4 +162,29 @@ sub() {
 	sed -i "s@$2@$3@"  $1
 }
 
+#往文件中某个数组变量里注入新元素。
+#$1 string to add
+#$2 array name
+#$3 file name
 
+ele_append() {
+	sed  "\^$2^s^)^ \""$1"\")^" $3
+}
+
+#删除文件中某个数组变量里的元素。
+#$1 string to delete
+#$2 array name
+#$3 file name
+
+ele_del() {
+	sed  "\^$2^s^\"$1\"^^" $3
+}
+
+#把文件的每一行当作参数送给函数运行。
+#$1 fun name
+#$2 file name
+map() {
+	while read LINE; do
+		$2 $LINE
+	done < $1
+}

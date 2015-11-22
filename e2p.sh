@@ -345,6 +345,22 @@ res_size() {
 	| mail -s "博客资源大小" $global_default_manager 
 }
 
+
+#API
+#添加或删除管理员
+#$1 - 添加/删除
+#$2 - 添加或删除的管理员邮箱。
+manager() {
+	case $1 in 	
+		"添加") 
+			#如果已在白名单中，则不重复添加。
+			is_in $1 ${global_white_list[@]} && return 0
+
+			;;
+		"删除") ;;
+	esac
+}
+
 #API
 #改变邮件通知状态。
 #如果邮件通知开，服务器会用邮件通知用户每次操作的结果
@@ -374,6 +390,7 @@ switch() {
 		"帮助" ) doc ;;
 		"通知" ) chage_info_state ;;
 		"空间" ) res_size ;; #空间使用情况。
+#		"人事" ) manager ;;
 	esac
 }
 
