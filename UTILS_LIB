@@ -168,7 +168,7 @@ sub() {
 #$3 file name
 
 ele_append() {
-	sed  "\^$2^s^)^ \""$1"\")^" $3
+	sed  -i "\^$2^s^)^ \""$1"\")^" $3
 }
 
 #删除文件中某个数组变量里的元素。
@@ -177,7 +177,7 @@ ele_append() {
 #$3 file name
 
 ele_del() {
-	sed  "\^$2^s^\"$1\"^^" $3
+	sed  -i "\^$2^s^\"$1\"^^" $3
 }
 
 #把文件的每一行当作参数送给函数运行。
@@ -185,6 +185,6 @@ ele_del() {
 #$2 file name
 map() {
 	while read LINE; do
-		$2 $LINE
-	done < $1
+		$1 $LINE
+	done < $2
 }

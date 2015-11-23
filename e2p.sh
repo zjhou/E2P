@@ -354,10 +354,14 @@ manager() {
 	case $1 in 	
 		"添加") 
 			#如果已在白名单中，则不重复添加。
-			is_in $1 ${global_white_list[@]} && return 0
-
+			is_in $2 ${global_white_list[@]} && return 0
+			ele_append $2 $global_white_list VARS_CONF
 			;;
-		"删除") ;;
+		"删除")
+			#如果不在白名单中，则不做删除操作。
+			is_in $2 ${global_white_list[@]} || return 0
+			ele_del $2 $global_white_list VARS_CONF
+			;;
 	esac
 }
 
@@ -390,7 +394,7 @@ switch() {
 		"帮助" ) doc ;;
 		"通知" ) chage_info_state ;;
 		"空间" ) res_size ;; #空间使用情况。
-#		"人事" ) manager ;;
+		"人事" ) map manager $global_tmpbox/body.txt;;
 	esac
 }
 
@@ -444,3 +448,4 @@ MAIN #**********************************************
 #***************************************************
 #include
 #black_list_filter blacklist 
+#map manager test.txt
