@@ -22,7 +22,6 @@ is_in() {
 	#获取数组长度语法${#array[@]}
 	local A=(${args[@]:1:$((${#args[@]}-1))})
 
-	#遍历数组A判断第一个参数是否在其中
 	for ele in ${A[@]}; do
 		if [ "$1" == "$ele" ];then
 			return 0
@@ -98,12 +97,9 @@ img_tag_render() {
 }
 
 #把图片html标签追加到文本末尾
-#-------------------------
-# 参数         描述
-#  $1           待追加的文本
-#  $2           图片超链接目录
-#  ${array[@]}  图片名字数组(数组元素是带后缀图片名字符串,eg. test.jpg)
-#-------------------------
+# $1           待追加的文本
+# $2           图片超链接目录
+# ${array[@]}  图片名字数组(数组元素是带后缀图片名字符串,eg. test.jpg)
 img_tag_appender() {
 	local args=($*)
 
@@ -121,10 +117,7 @@ img_tag_appender() {
 }
 
 #删除邮件
-#-------------------------
-# 参数   描述
-#  $*     邮件序号
-#-------------------------
+# $*     邮件序号
 del_mail() {
 	mail << EOF
 	d $*
@@ -132,11 +125,8 @@ EOF
 }
 
 #提取邮件主题（不支持空格）
-#-------------------------
-# 参数   描述
-#  $1     邮件序号
-#-------------------------
-get_subject() {
+# $1     邮件序号
+get_mail_subj() {
 	local subj=`mail -H | awk '{if($1 == "'$1'") print $3}'`
 	echo $subj
 }
@@ -147,11 +137,17 @@ get_subject() {
 #  $1     黑名单文件，
 #         每行一个黑名单地址关键字
 #-------------------------
-black_list_filter() {
+del_ad_mail() {
 	local target_num=(`mail -H | grep -f $1 | awk '{print $1}'`)
 	#mail -H | grep -f $1
-	[[ -z $target_num ]] && return 0	
-	del_mail ${target_num[@]}
+	echo ${target_num[@]}
+
+	if [ -z $target_num ]; then
+		return 1	
+	else
+		#del_mail ${target_num[@]}
+		return 0
+	fi
 }
 
 # 替换文中一个字符串。

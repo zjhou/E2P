@@ -14,8 +14,6 @@ global_vars() {
 					"帮助" "通知" "空间" "人事")
 	#管理员白名单	
 	global_white_list=("wintrace@outlook.com" "313721293@qq.com"  )		
-	#垃圾邮件黑名单-地址关键字
-	global_black_list=("generalassemb")
 	#默认管理员
 	global_default_manager="${global_white_list[0]}"
 	#临时文件存放路径，不能为空

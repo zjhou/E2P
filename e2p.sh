@@ -18,34 +18,23 @@
 
 
 #***************************************************
-#*引用外部文件*
+#*引进外部文件*
 #***************************************************
 include() {
 	#引用全局配置
 	. VARS_CONF
+	. MAIL_MSGS
 
 	#引用工具库
 	. UTILS_LIB
-
-	#引用消息库
-	. MAIL_MSGS
 }
 
 #***************************************************
 #*工具函数*
 #***************************************************
 
-# 1. 检查邮件发送者是否在白名单中，
-# 2. 检查发送者是否发来了管理邮件。
-#
-#如果不在返回假。
-#--------------------------------------
-#    返回值   描述
-#      1       检测失败，无管理员邮件
-#      0       检测成功，有管理员邮件
-#  $(($i+1))   管理员邮件的序号
-#--------------------------------------
-check_sender() {
+#返回管理员邮件序号。
+get_manager_mailnum() {
 	#通过在配置文件~/.mailrc或/etc/nail.rc中设置headline的值
 	#可以控制mail -H的输出字段。
 	#这里headline的值为"%m %30s %s"
@@ -64,12 +53,8 @@ check_sender() {
 	return 1
 }
 
-#提取邮件正文（纯文本）
-#*工具函数*
-#-------------------------
-# 参数   描述
-#  $1     邮件序号
-#-------------------------
+#提取邮件
+# $1 邮件序号
 
 extract_mail() {
 	#邮件正文终止分割线。
@@ -81,7 +66,6 @@ extract_mail() {
 		copy $1 $global_tmpbox/MIME.txt
 		q
 EOF
-
 	#处理附件部分
 	#判断是否有附件啊，有则解压，并移到相应目录下。
 	#如果有附件，邮件正文终止分割线会变化。因为多了附件部分。
@@ -100,13 +84,9 @@ EOF
 		#加上参数rt按时间逆序排列，将使得最先引用的附件出现在imgs.list前边
 		ls -rt * | grep -E "*\.(png|jpg|gif)" >> imgs.list
 
-#		ls -rt *.jpg >> imgs.list
-#		ls -rt *.png >> imgs.list 
-
 		mv $global_tmpbox/*.jpg $global_local_imgs
 		mv $global_tmpbox/*.png $global_local_imgs 
 	fi
-
 
 	#提取正文部分。
 	{
@@ -152,7 +132,7 @@ update() {
 # * 格式：第一行为博文的名字，不能为空行。
 add() {
 #***二次编辑模块***
-	#注意！提取第一行为标题。所有邮件正文第一行不能为空。
+	#注意！提取第一行为标题。所以邮件正文第一行不能为空。
 	local title=`cat $global_tmpbox/body.txt | awk 'NR == 1 {print}'`
 
 	#根据hexo博文语法的要求。加入如下一行，否则不能正常显示标题。
@@ -381,7 +361,7 @@ chage_info_state() {
 #根据邮件主题调用不同的API函数
 #参数  描述
 # $1    邮件主题
-switch() {
+run_cmd() {
 	case "$1" in
 		"发布" ) add ;;
 		"删除" ) del ;;
@@ -401,43 +381,30 @@ switch() {
 #***************************************************
 #*MAIN函数*
 #***************************************************
-
-
-#为了提高程序可读性，统一在主函数调用该脚本里其他函数
+#为了程序可读性，统一在主函数调用该脚本里其他函数
 MAIN (){
-	#检测邮箱里是否有邮件。
 	mail -e || exit
 
-	#激活全局变量及外部文件
 	include
 
-	#先过滤黑名单中垃圾邮件。
-	#black_list_filter ${global_black_list[@]}
+	del_ad_mail blacklist 
 
-	#获取管理员邮件序号。
-	email_num=`check_sender`
+	email_num=`get_manager_mailnum`
 
-	#检测是否有管理员邮件。
-	[[ -z $email_num ]] && exit
+	if [ -z $email_num ];then 
+		exit
+	fi
 
-	#设置当前管理员。
 	set_manager $email_num
 
-	#提取邮件。
 	extract_mail $email_num
 
-	#获取邮件主题。
-	email_subj=`get_subject $email_num`
+	subj_cmd=`get_mail_subj $email_num`
 
+	run_cmd $subj_cmd
 
-	#根据主题运行不同命令
-	switch $email_subj
-
-	#清理临时文件，以及移除已经处理过的管理邮件
 	rm $global_tmpbox/*
 	del_mail $email_num
-
-	black_list_filter blacklist 
 }
 
 #***************************************************
@@ -447,5 +414,4 @@ MAIN #**********************************************
 #***************************************************
 #***************************************************
 #include
-#black_list_filter blacklist 
-#map manager test.txt
+#del_ad_mail blacklist
