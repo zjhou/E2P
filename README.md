@@ -4,9 +4,9 @@ Email 2 Post: 监测并解析博客管理员邮件，自动部署博文，更新
 
 ### 环境
 
-操作系统：ubuntu server 12.02
-邮件系统：postfix + mail
-博客系统：hexo + apache2.0
+- 操作系统：ubuntu server 12.02
+- 邮件系统：postfix + mail
+- 博客系统：hexo + apache2.0
 
 ### 配置
 VARS_CONF
