@@ -184,3 +184,16 @@ map() {
 		$1 $LINE
 	done < $2
 }
+
+#检测邮件是否带有附件。
+#$1 邮件序号
+has_attach?() {
+	{
+		mail << EOF
+			p $1
+			q
+EOF
+	#有关键词"Part 2:"则除了正文部分还有附件。
+	} | grep "^Part 2:$" > /dev/null
+	return $?
+}
