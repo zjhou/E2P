@@ -196,6 +196,16 @@ EOF
 	return $?
 }
 
+#检测文件夹是否为空
+#$1 dir
+is_dir_empty?() {
+	if [ "$(ls -A $1)" ]; then
+		return 1
+	else
+		return 0
+	fi
+}
+
 #获取邮件正文
 #$1 邮件序号
 get_mail_text() {
@@ -215,4 +225,32 @@ get_mail_text() {
 EOF
 	} | sed -n "/Content-Type: text\/plain/, /$cutline/p" \
 	  | sed '1,2d;$d;' 
+}
+
+#获取邮件附件
+#$1 邮件序号
+#$2 附件存放文件夹
+#返回值 附件名数组
+#副作用 将附件解压到指定文件夹
+get_mail_attachment() {
+
+	if ! is_dir_empty? /var/tmp; then
+		rm /var/tmp/*
+	fi
+
+	{
+		mail << EOF
+		copy $1 /var/tmp/mail_with_attach.txt
+		q
+EOF
+	} &> /dev/null
+
+	munpack -C /var/tmp/ mail_with_attach.txt &> /dev/null && \
+	rm /var/tmp/mail_with_attach.txt
+
+	cd /var/tmp
+	local attach_list=(`ls -rt *`)
+	echo ${attach_list[@]}
+
+	mv /var/tmp/* $2
 }
