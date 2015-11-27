@@ -3,7 +3,6 @@
 #脚本：E2P(Email 2 Post)
 #编写：zjhou
 #日期：2015-11-12
-#更新：2015-11-12
 #描述：解析博客管理员的邮件，自动部署，或删除，更改
 #      博客系统完成博客管理更新工作。
 #
@@ -46,8 +45,8 @@ get_manager_mailnum() {
 
 	local len=${#user[@]}
 	for ((i = 0; i < $len; i++)); do
-		is_in ${user[$i]} ${global_white_list[@]} && \
-		is_in ${subj[$i]} ${global_cmd_set[@]} && \
+		is_in? ${user[$i]} ${global_white_list[@]} && \
+		is_in? ${subj[$i]} ${global_cmd_set[@]} && \
 		echo $(($i+1)) && return 0
 	done
 	return 1
@@ -55,12 +54,7 @@ get_manager_mailnum() {
 
 #提取邮件
 # $1 邮件序号
-
 extract_mail() {
-	#邮件正文终止分割线。
-	local cutline="-end-"
-	local hasAtta=0
-
 	#保存一份副本。提取附件。
 	mail << EOF
 		copy $1 $global_tmpbox/MIME.txt
@@ -70,11 +64,10 @@ EOF
 	#判断是否有附件啊，有则解压，并移到相应目录下。
 	#如果有附件，邮件正文终止分割线会变化。因为多了附件部分。
 	#当前只考虑了图片附件。
-	munpack -C $global_tmpbox MIME.txt | grep "Did not find anything" || \
-	hasAtta=1 # 1 表示有附件。
-	if [ "$hasAtta" == "1" ] 
-	then
-		cutline="Part 2:" 
+
+	if has_attach? $1; then
+
+		munpack -C $global_tmpbox MIME.txt 
 
 		#维护一个图片附件清单。
 		#可供其他模块判断是否有附件
@@ -89,18 +82,7 @@ EOF
 	fi
 
 	#提取正文部分。
-	{
-		mail << EOF
-		p $1
-		echo " "
-		echo $cutline
-		q
-EOF
-		#AWK根据邮件格式，提取正文内容。将其保存在$global_tmpbox/body.txt中。
-		#SED删除第一行空行。
-	} | awk '/Content-Type: text\/plain/, /'"$cutline"'/{if(i>1) print x; x=$0; i++}'\
-	  | sed '1d' \
-	  > $global_tmpbox/body.txt  	
+	get_mail_text $1 > $global_tmpbox/body.txt  	
 }
 
 #设置当前管理员
@@ -151,8 +133,8 @@ add() {
 
 		#如果找到了图片占位标志(如[图1：57])则替换成图片标签，否则追加标签
 		cd $global_local_posts 
-		grep "图[0-9]%[0-9]*" $title.md 
 
+		grep "图[0-9]%[0-9]*" $title.md 
 		if [ $? -eq 0 ]
 		then 
 			img_tag_render $title.md $global_blog_imgs ${imgs[@]} 
@@ -333,14 +315,18 @@ res_size() {
 manager() {
 	case $1 in 	
 		"添加") 
-			#如果已在白名单中，则不重复添加。
-			is_in $2 ${global_white_list[@]} && return 0
-			ele_append $2 $global_white_list VARS_CONF
+			if is_in? $2 ${global_white_list[@]}; then  
+				return 0
+			else
+				ele_append $2 $global_white_list VARS_CONF
+			fi 
 			;;
 		"删除")
-			#如果不在白名单中，则不做删除操作。
-			is_in $2 ${global_white_list[@]} || return 0
-			ele_del $2 $global_white_list VARS_CONF
+			if is_in? $2 ${global_white_list[@]}; then
+				ele_del $2 $global_white_list VARS_CONF
+			else
+			   return 0
+			fi
 			;;
 	esac
 }

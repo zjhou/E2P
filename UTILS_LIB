@@ -13,7 +13,7 @@
 #  $1           待匹配的元素
 #  ${array[@]}  数组
 #-------------------------
-is_in() {
+is_in?() {
 	#获取所有参数，封装到一个数组中
 	local args=($*)
 
@@ -139,13 +139,11 @@ get_mail_subj() {
 #-------------------------
 del_ad_mail() {
 	local target_num=(`mail -H | grep -f $1 | awk '{print $1}'`)
-	#mail -H | grep -f $1
-	echo ${target_num[@]}
 
 	if [ -z $target_num ]; then
 		return 1	
 	else
-		#del_mail ${target_num[@]}
+		del_mail ${target_num[@]}
 		return 0
 	fi
 }
@@ -196,4 +194,25 @@ EOF
 	#有关键词"Part 2:"则除了正文部分还有附件。
 	} | grep "^Part 2:$" > /dev/null
 	return $?
+}
+
+#获取邮件正文
+#$1 邮件序号
+get_mail_text() {
+
+	if has_attach? $1; then
+		local cutline="Part 2:"
+	else
+		local cutline="-end-"
+	fi
+
+	{
+		mail << EOF
+		p $1
+		echo " "
+		echo $cutline
+		q
+EOF
+	} | sed -n "/Content-Type: text\/plain/, /$cutline/p" \
+	  | sed '1,2d;$d;' 
 }
