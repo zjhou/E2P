@@ -1,13 +1,22 @@
 #***************************************************
-#脚本：MAIL_MSGS
+#脚本：VARS_CNF
 #编写：zjhou
 #日期：2015-11-15
-#更新：2015-11-15
-#描述：供脚本e2p.sh使用文本消息。
-#备注：
+#描述：全局变量
 #***************************************************
 
-
+#临时文件存放路径，不能为空
+global_tmpbox="$HOME/tmpbox"
+#支持的命令集，如果邮件主题不在命令集中，脚本将不做处理。
+global_cmd_set=("发布" "删除" "目录" "帮助")
+#管理员白名单	
+global_white_list=("wintrace@outlook.com" "313721293@qq.com"  )		
+#默认管理员
+global_default_manager="${global_white_list[0]}"
+#邮件通知开关，如果设置为off, 将不会发送邮件通知给用户
+global_mail_info="on"
+#e2p.sh的目录
+global_e2p_path="$HOME/bin/E2P/"
 
 #fun reset()
 reset_msg="博都已经隐藏。\n您可以通过发送一封以“恢复”为主题的邮件给服务器，重新恢复博客" 

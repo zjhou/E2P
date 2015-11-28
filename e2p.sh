@@ -16,12 +16,9 @@
 #***************************************************
 
 include() {
-	#引用全局配置
-	. VARS_CONF
-	. MAIL_MSGS
-
-	#引用工具库
-	. UTILS_LIB
+	. VARS_CNF
+	. HEXO_SYS
+	. MAIL_SYS
 }
 
 #*工具函数*
@@ -301,7 +298,7 @@ MAIN (){
 
 	include
 
-	del_ad_mail blacklist 
+	#del_ad_mail blacklist 
 
 	email_num=`get_manager_mailnum`
 
