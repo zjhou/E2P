@@ -135,28 +135,14 @@ del_img_ref() {
 # * 格式必须为一行一个条目。
 del() {
 	#获取要删除的目标博文并初始化操作标识
-	#local target=(`cat $global_tmpbox/body.txt`)
 	local target=(`get_mail_text $1`)
-	local error=0
-	local norm=0
-
-	#静默创建日志文件
-	{ 
-		echo -e "*操作日志*" > $global_tmpbox/del.log
-		echo -e "_____\n成功删除的博文：" > $global_tmpbox/del_norm.log
-		echo -e "_____\n无法删除的博文（请检查文件名是否正确）：" > $global_tmpbox/del_err.log
-	} &> /dev/null
 
 	#遍历博文
 	for file in ${target[@]}; do
 		if [ -e $global_local_posts/$file.md ]; then
-			#删除引用图片。
 			del_img_ref $file
 			rm $global_local_posts/$file.md	
-			[[ $norm -eq 0 ]] && norm=1
-			echo -e "《$file》" >> $global_tmpbox/del_norm.log
 		else
-			[[ $error -eq 0 ]] && error=1
 			echo -e "《$file》" >> $global_tmpbox/del_err.log
 		fi
 	done
@@ -164,15 +150,11 @@ del() {
 	update
 
 	#将日志发送给博客管理员
-	[[ $norm -eq 1 ]] && \
-	cat $global_tmpbox/del_norm.log >> $global_tmpbox/del.log
-
-	[[ $error -eq 1 ]] && \
-	cat $global_tmpbox/del_err.log >> $global_tmpbox/del.log
-
-	is_mail_on && \
-	cat $global_tmpbox/del.log \
-	| mail -s "操作日志" $global_default_manager #将结果通过邮件回传给管理员
+	if [ -e $global_tmpbox/del_err.log ]; then
+		is_mail_on && \
+		cat $global_tmpbox/del.log \
+		| mail -s "无法删除" $global_default_manager #将结果通过邮件回传给管理员
+	fi
 }
 
 edit(){
