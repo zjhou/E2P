@@ -15,7 +15,6 @@
 #备注：该脚本作为Crontab的例行脚本,将被自动调用。
 #***************************************************
 
-
 include() {
 	#引用全局配置
 	. VARS_CONF
@@ -47,39 +46,6 @@ get_manager_mailnum() {
 	return 1
 }
 
-#提取邮件
-# $1 邮件序号
-extract_mail() {
-	#保存一份副本。提取附件。
-	mail << EOF
-		copy $1 $global_tmpbox/MIME.txt
-		q
-EOF
-	#处理附件部分
-	#判断是否有附件啊，有则解压，并移到相应目录下。
-	#如果有附件，邮件正文终止分割线会变化。因为多了附件部分。
-	#当前只考虑了图片附件。
-
-	if has_attach? $1; then
-
-		munpack -C $global_tmpbox MIME.txt 
-
-		#维护一个图片附件清单。
-		#可供其他模块判断是否有附件
-		#同时方便引用附件。
-		cd $global_tmpbox
-
-		#加上参数rt按时间逆序排列，将使得最先引用的附件出现在imgs.list前边
-		ls -rt * | grep -E "*\.(png|jpg|gif)" >> imgs.list
-
-		mv $global_tmpbox/*.jpg $global_local_imgs
-		mv $global_tmpbox/*.png $global_local_imgs 
-	fi
-
-	#提取正文部分。
-	get_mail_text $1 > $global_tmpbox/body.txt  	
-}
-
 #设置当前管理员
 #-------------------------
 # 参数   描述
@@ -101,47 +67,37 @@ update() {
 }
 
 #把邮件内容作为博文。发布到博客。
+# $1 邮件序号
 # * 此时邮件内容必须为准备发布的博文。
 # * 格式：第一行为博文的名字，不能为空行。
+
+#add_helper - format text 
+format() {
+	sed -e '1 s/\(.*\)/title: \1/' -e '1 a ---' $1
+}
+
 add() {
-#***二次编辑***
-	#注意！提取第一行为标题。所以邮件正文第一行不能为空。
-	local title=`cat $global_tmpbox/body.txt | awk 'NR == 1 {print}'`
+	local title=`get_mail_text $1 | sed -n '1p'`		
+	get_mail_text $1 | format > $global_local_posts/$title.md
 
-	#根据hexo博文语法的要求。加入如下一行，否则不能正常显示标题。
-	echo -e "title: $title\n---\n" > $global_local_posts/$title.md
-
-	#邮件除第一行，都将作为正文。
-	cat $global_tmpbox/body.txt | awk 'NR != 1 {print}' >> $global_local_posts/$title.md
-
-	#判断是否有图片附件。
-	#如果有则自动替换成html标签或追加标签到博文。
-	if [ -f $global_tmpbox/imgs.list ]
-	then
-		cd $global_tmpbox
-		local imgs=(`cat imgs.list`)
-		local num_of_imgs=${#imgs[@]}
-
-		#如果找到了图片占位标志(如[图1：57])则替换成图片标签，否则追加标签
+	if has_attach? $1; then
+		local imgs=(`get_mail_attachment $1 $global_local_imgs`)
 		cd $global_local_posts 
 
-		grep "图[0-9]%[0-9]*" $title.md 
-		if [ $? -eq 0 ]
-		then 
+		if need_render? $title.md; then
 			img_tag_render $title.md $global_blog_imgs ${imgs[@]} 
 		else
 			img_tag_appender $title.md $global_blog_imgs ${imgs[@]} 
 		fi
-			
 	fi
 
 	update
-	is_mail_on && \
-	echo "博文《$title》部署成功，您可以点击查看：http://$global_blog_url" \
-	| mail -s "部署成功" $global_default_manager
+
+	if is_mail_on; then
+		echo "博文《$title》部署成功，您可以点击查看：http://$global_blog_url" \
+		| mail -s "部署成功" $global_default_manager
+	fi
 }
-
-
 #列出所有博文的目录
 list() {
 	#设置ls输出的时间格式，并按时间排序，最近的在前。
@@ -179,7 +135,8 @@ del_img_ref() {
 # * 格式必须为一行一个条目。
 del() {
 	#获取要删除的目标博文并初始化操作标识
-	local target=(`cat $global_tmpbox/body.txt`)
+	#local target=(`cat $global_tmpbox/body.txt`)
+	local target=(`get_mail_text $1`)
 	local error=0
 	local norm=0
 
@@ -338,10 +295,10 @@ chage_info_state() {
 # $1    邮件主题
 run_cmd() {
 	case "$1" in
-		"发布" ) add ;;
-		"删除" ) del ;;
+		"发布" ) add $2;;
+		"删除" ) del $2;;
 		"目录" ) list ;;
-		"编辑" ) edit ;;
+#		"编辑" ) edit ;;
 		"隐藏" ) hide ;;
 		"恢复" ) recovery ;; 
 		"备份" ) backup ;;
@@ -349,7 +306,7 @@ run_cmd() {
 		"帮助" ) doc ;;
 		"通知" ) chage_info_state ;;
 		"空间" ) res_size ;; #空间使用情况。
-		"人事" ) map manager $global_tmpbox/body.txt;;
+#		"人事" ) map manager $global_tmpbox/body.txt;;
 	esac
 }
 
@@ -374,22 +331,20 @@ MAIN (){
 		set_manager $email_num
 	fi
 
-	extract_mail $email_num
-
 	subj_cmd=`get_mail_subj $email_num`
 
-	run_cmd $subj_cmd 
-	#run_cmd $subj_cmd $email_num
+	run_cmd $subj_cmd $email_num
 
-	rm $global_tmpbox/*
+	if ! is_dir_empty? $global_tmpbox; then
+		rm $global_tmpbox/*
+	fi
 	del_mail $email_num
 }
 
 #***************************************************
 #***************************************************
 #DO NOT CHANGE ANYTHING HERE ***********************
-#MAIN #**********************************************
+MAIN #**********************************************
 #***************************************************
 #***************************************************
-include
-get_mail_attachment 1 ~/bin/E2P/
+#include

@@ -80,20 +80,22 @@ img_tag_render() {
 	local imgs=(${args[@]:2:$((${#args[@]}-2))})
 	local num_of_imgs=${#imgs[@]}
 
-	#构造html标签
-	local _img_tag="<img "
-	local img_ref="src='$2"
-	local img_tag_="'>"
-
 	for ((i = 0; i < $num_of_imgs; i++));do
 		local img_width="width='`grep -oE "图$(($i+1))%[0-9]+" $1 | grep -oE [0-9]+$`%'"
-		#组装标签。
-		local _img_tag_="$_img_tag$img_width $img_ref${imgs[$i]}$img_tag_"
+
+		local _img_tag_="<img $img_width src='$2${imgs[$i]}' />"
 		#替换
 		#注意！sed正则支持任意分隔符，第一次使用要加反斜杠，除非分隔符是反斜杠
 		#因为用斜杠作分隔符将会和变量$_img_tag_中的路径斜杠冲突。造成语法错误。
 		sed -i "\#图$(($i+1))#s#图$(($i+1))%[0-9]*#${_img_tag_}#" $1
 	done
+}
+
+#img_tag_render helper
+#$1 待渲染的文本
+need_render?() {
+	grep "图[0-9]%[0-9]*" $1
+	return $?
 }
 
 #把图片html标签追加到文本末尾
@@ -105,14 +107,8 @@ img_tag_appender() {
 
 	local imgs=(${args[@]:2:$((${#args[@]}-2))})
 
-	#构造图片标签
-	local _img_tag="<img "
-	local img_ref="src='$2"
-	local img_tag_="' />"
-
 	for img in ${imgs[@]}; do
-		#将组装好的标签追加到文本中。
-		echo -n $_img_tag$img_ref$img$img_tag_ >> $1
+		echo -n "<img src='$2$img' />" >> $1
 	done
 }
 
@@ -230,27 +226,25 @@ EOF
 #获取邮件附件
 #$1 邮件序号
 #$2 附件存放文件夹
-#返回值 附件名数组
+#返回值 附件名单
 #副作用 将附件解压到指定文件夹
 get_mail_attachment() {
 
-	if ! is_dir_empty? /var/tmp; then
+	cd /var/tmp
+	if ! is_dir_empty? .; then
 		rm /var/tmp/*
 	fi
 
 	{
 		mail << EOF
-		copy $1 /var/tmp/mail_with_attach.txt
+		copy $1 mail_with_attach.txt
 		q
 EOF
 	} &> /dev/null
 
-	munpack -C /var/tmp/ mail_with_attach.txt &> /dev/null && \
-	rm /var/tmp/mail_with_attach.txt
+	munpack  mail_with_attach.txt &> /dev/null && \
+	rm mail_with_attach.txt
 
-	cd /var/tmp
-	local attach_list=(`ls -rt *`)
-	echo ${attach_list[@]}
-
+	ls -rt *
 	mv /var/tmp/* $2
 }
