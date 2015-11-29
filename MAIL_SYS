@@ -1,116 +1,11 @@
+#!/bin/bash
 #***************************************************
-#脚本：UTILS_LIB.sh
+#脚本：MAIL_SYS
 #编写：zjhou
 #日期：2015-11-15
-#更新：2015-11-15
-#描述：供脚本e2p.sh使用工具函数库。
+#描述：mail_utils_wraper
 #备注：
 #***************************************************
-
-#判断元素是否在数组中
-#-------------------------
-# 参数         描述
-#  $1           待匹配的元素
-#  ${array[@]}  数组
-#-------------------------
-is_in?() {
-	#获取所有参数，封装到一个数组中
-	local args=($*)
-
-	#数组A保存了除第一个参数外所有参数
-	#数组切片语法${array[@]:start:step
-	#获取数组长度语法${#array[@]}
-	local A=(${args[@]:1:$((${#args[@]}-1))})
-
-	for ele in ${A[@]}; do
-		if [ "$1" == "$ele" ];then
-			return 0
-		fi
-	done
-	return 1
-}
-
-#更改全局变量的值
-#全局变量配置文件默认为VAR_CONF
-#-------------------------
-# 参数         描述
-#  $1           变量名
-#  $2           变量值
-#-------------------------
-set_var() {
-	grep "$1" VARS_CONF && \
-	sed -i '/'$1'/s/\"[-_0-9a-zA-Z]*\"/'\"$2\"'/' VARS_CONF
-	return 0
-}
-
-is_mail_on() {
-	if [ "$global_mail_info" == "on" ]
-	then 
-		return 0
-	else
-		return 1
-	fi
-}
-
-#把图片占位标识替换成，html标签。
-#定义：
-#图片占位标识是指形如
-#
-#  图1%79
-#
-#的字符串。
-#  
-# 1. 
-# 2. ”图“后边紧跟一位数字/[0-9]/
-# 3. "%"号后紧跟一位或两位数字/[0-9]+/
-#
-# $1中的字符串”图1%79“ 将被替换成<img width='79%' src='/$2/${array[0]}' >
-# 参数说明如下：
-#-------------------------
-# 参数         描述
-#  $1           待替换的文本
-#  $2           图片超链接目录
-#  ${array[@]}  图片数组
-#-------------------------
-img_tag_render() {
-	#获取参数
-	local args=($*)
-
-	#从参数数组中提取图片数组并求得图片数目
-	local imgs=(${args[@]:2:$((${#args[@]}-2))})
-	local num_of_imgs=${#imgs[@]}
-
-	for ((i = 0; i < $num_of_imgs; i++));do
-		local img_width="width='`grep -oE "图$(($i+1))%[0-9]+" $1 | grep -oE [0-9]+$`%'"
-
-		local _img_tag_="<img $img_width src='$2${imgs[$i]}' />"
-		#替换
-		#注意！sed正则支持任意分隔符，第一次使用要加反斜杠，除非分隔符是反斜杠
-		#因为用斜杠作分隔符将会和变量$_img_tag_中的路径斜杠冲突。造成语法错误。
-		sed -i "\#图$(($i+1))#s#图$(($i+1))%[0-9]*#${_img_tag_}#" $1
-	done
-}
-
-#img_tag_render helper
-#$1 待渲染的文本
-need_render?() {
-	grep "图[0-9]%[0-9]*" $1
-	return $?
-}
-
-#把图片html标签追加到文本末尾
-# $1           待追加的文本
-# $2           图片超链接目录
-# ${array[@]}  图片名字数组(数组元素是带后缀图片名字符串,eg. test.jpg)
-img_tag_appender() {
-	local args=($*)
-
-	local imgs=(${args[@]:2:$((${#args[@]}-2))})
-
-	for img in ${imgs[@]}; do
-		echo -n "<img src='$2$img' />" >> $1
-	done
-}
 
 #删除邮件
 # $*     邮件序号
@@ -144,41 +39,6 @@ del_ad_mail() {
 	fi
 }
 
-# 替换文中一个字符串。
-# $1 文本路径
-# $2 old string
-# $3 new string
-sub() {
-	sed -i "s@$2@$3@"  $1
-}
-
-#往文件中某个数组变量里注入新元素。
-#$1 string to add
-#$2 array name
-#$3 file name
-
-ele_append() {
-	sed  -i "\^$2^s^)^ \""$1"\")^" $3
-}
-
-#删除文件中某个数组变量里的元素。
-#$1 string to delete
-#$2 array name
-#$3 file name
-
-ele_del() {
-	sed  -i "\^$2^s^\"$1\"^^" $3
-}
-
-#把文件的每一行当作参数送给函数运行。
-#$1 fun name
-#$2 file name
-map() {
-	while read LINE; do
-		$1 $LINE
-	done < $2
-}
-
 #检测邮件是否带有附件。
 #$1 邮件序号
 has_attach?() {
@@ -190,16 +50,6 @@ EOF
 	#有关键词"Part 2:"则除了正文部分还有附件。
 	} | grep "^Part 2:$" > /dev/null
 	return $?
-}
-
-#检测文件夹是否为空
-#$1 dir
-is_dir_empty?() {
-	if [ "$(ls -A $1)" ]; then
-		return 1
-	else
-		return 0
-	fi
 }
 
 #获取邮件正文
@@ -228,7 +78,7 @@ EOF
 #$2 附件存放文件夹
 #返回值 附件名单
 #副作用 将附件解压到指定文件夹
-get_mail_attachment() {
+get_mail_attach() {
 
 	cd /var/tmp
 	if ! is_dir_empty? .; then

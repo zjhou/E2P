@@ -1,3 +1,4 @@
+#!/bin/bash
 #***************************************************
 #脚本：VARS_CONF
 #编写：zjhou
@@ -8,20 +9,20 @@
 #***************************************************
 
 vars() {
-	#博客网址
-	hexo_blog_url="zjhou.com/blog"
-	#博客图片目录
-	hexo_blog_imgs="/blog/imgs/"
-	#本地静态博客根目录
-	hexo_blog="$HOME/local/blog"
-	#本地静态博客的文本目录
-	hexo_posts="$hexo_blog/source/_posts"
-	#本地静态博客的图片目录
-	hexo_imgs="$hexo_blog/source/imgs"
-	#本地存放静态博客渲染成网页文件的目
-	hexo_htmls="$hexo_blog/public"
-	#服务器网站文档根目录
-	site_doc="$HOME/site/blog"
+    #博客网址
+    hexo_blog_url=zjhou.com/blog
+    #博客图片目录
+    hexo_blog_imgs=/blog/imgs/
+    #本地静态博客根目录
+    hexo_blog=$HOME/local/blog
+    #本地静态博客的文本目录
+    hexo_posts=$hexo_blog/source/_posts
+    #本地静态博客的图片目录
+    hexo_imgs=$hexo_blog/source/imgs
+    #本地存放静态博客渲染成网页文件的目
+    hexo_htmls=$hexo_blog/public/
+    #服务器网站文档根目录
+    site_doc=$HOME/site/blog/
 }
 
 #***************************************************
@@ -30,23 +31,75 @@ vars #**********************************************
 #***************************************************
 #***************************************************
 
-h_update() {
-	cd $hexo_blog && \
-	hexo clean --silent && hexo g --silent
-
-	rm -r $site_doc/*
-	cp -R $hexo_tmls/* $site_doc/
+refresh() {
+    cd $hexo_blog && \
+    hexo clean --silent && hexo g --silent
+    cp -r $hexo_htmls/* $site_doc
+    return 0
 }
 
 #$1 格式良好的博文文本标题。
+# * 格式良好是指:
+# 1. 文本第一行由英文'title: '（注意空格）+ 标题构成
+# 2. 文本第二行有三个连接符'---'构成
+# 3. 文本其余部分为正文
+# * 示例如下：
+# title: example
+# ---
+# this is a test post.
 #如果留空则从标准输入读取。
-h_publish() {
-		
+#发布博文
+publish() {
+    {
+        if [ $# -eq 0 ]; then
+            cat 
+        else
+            cat $1 
+        fi
+    } > $hexo_posts/___.md
+
+    local title=`sed -n '1s/title: //p' $hexo_posts/___.md`
+    mv $hexo_posts/___.md $hexo_posts/$title.md
+
+    refresh 
+    return 0
 }
 
+#$* 博文标题
+#删除博文
+del() {
+    for post in $*; do
+        if [ -f $hexo_posts/$post.md ]; then
+            rm $hexo_posts/$post.md
+        else
+            echo "Can not find: $post"
+            return 1
+        fi
+    done
+    refresh
+    return 0
+}
 
+#删除文章引用的图片。
+#注意！此函数硬编码了文章目录以及图片目录
+#不具有通用性。只用作del辅助函数。
+#  $1 	文章标题。
+del_img_ref() {
+	#首先粗略判断文章是否引用了图片。
+	grep "<img*" $hexo_posts/$1.md || return 0 
 
+	#正则匹配出所有引用的图片标题。
+	local imgs=(`grep -oE "[-_0-9a-zA-Zu4e00-u9fa5]+\.(jpg|png|gif)" $hexo_posts/$1.md`)
 
+	#遍历删除图片
+	for img in ${imgs[@]};do
+		[[ -f $hexo_imgs/$img ]] && \
+		rm "$hexo_imgs/$img"
+	done
+}
 
-
-
+#返回博文目录
+list() {
+    ls $hexo_posts | sed -n 's/\.md//gp'
+    return 0
+}
