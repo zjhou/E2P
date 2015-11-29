@@ -8,30 +8,58 @@ Email 2 Post: 监测并解析博客管理员邮件，自动部署博文，更新
 - 博客系统：hexo + apache2.0
 
 ### 配置
-VARS_CONF
+1. mail client: /etc/nail.rc
+```
+set headhine="%m %30f %s"
+#set showname
+```
+2. bash environment: ~/.profile
+```
+export LANG=en_US.UTF-8
+MAIL=path/to/Maildir
+```
+3. crontab -e
+```
+export LANG=en_US.UTF-8
+export PATH=path/to/E2P:$PATH
+cd path/to/E2P && e2p.sh &> /dev/null
+```
+4. config HEXO_SYS
 
 ### 运行
 $ crontab -e
-加入一行
 ```
 * * * * * cd path/to/E2P/ && e2p.sh
 ```
 
+### 结构
+```
+E2P
+ |
+ |-- HEXO_SYS (functions wrap hexo cmds)
+ |-- MAIL_SYS (functions wrap mail cmds)
+ |-- UTIL_SYS (utils functions)
+ `-- e2p.sh (switcher)
+                                           
+                                       |--> mail_subj-->|            
++---------+   +------+   +----------+  |                |   +--------+
+| Maildir |-->| mail |-->| MAIL_SYS |--|--> mail_atta-->|-->| e2p.sh |
++---------+   +------+   +----------+  |                |   +--------+
+                                       |--> mail_text-->|       |
+                                                                |    
+                                         |<--publish <--|       v
++----------+     +--------+   +------+   |<--   list <--|  +----------+
+| site_dir |<----| public |<--| hexo |---|<--    del <--|--| HEXO_SYS |
++----------+     +--------+   +----- +   |<--    doc <--|  +----------+
+                                         |<--refresh <--|
+
+```
+
 ### 主要功能
 
-1. 添加博文（支持图文）
+1. 添加博文
 2. 批量删除博文
 3. 列出所有博文目录
-4. 隐藏所有博文
-5. 恢复隐藏的博文
-6. 备份博客目录
-7. 查看博客系统资源大小
-8. 帮助文档
-9. 添加/删除管理员
-10. 关闭/开启邮件通知
+4. 帮助文档
 
-### 使用
 
-脚本通过**邮件地址**识别管理员，通过**主题**识别命令，通过**正文**识别参数。
-
-发送一封以“帮助”为主题的邮件给服务器如mail@yourserver.com即可获得详细的帮助文档。
