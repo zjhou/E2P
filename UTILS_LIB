@@ -30,6 +30,11 @@ is_in?() {
 	return 1
 }
 
+gen_rndNum() {
+    local str=`date +%s%N`
+    echo ${str:8}
+}
+
 #更改全局变量的值
 #全局变量配置文件默认为VAR_CONF
 #-------------------------
@@ -207,9 +212,14 @@ is_dir_empty?() {
 get_mail_text() {
 
 	if has_attach? $1; then
+		#local cutline="Part 2:"
+        local startline="^Content-Type: text"
+        #local startline="Part 1:"
 		local cutline="Part 2:"
 	else
+		#local cutline="-end-"
 		local cutline="-end-"
+        local startline="Status: RO"
 	fi
 
 	{
@@ -219,9 +229,13 @@ get_mail_text() {
 		echo $cutline
 		q
 EOF
-	} | sed -n "/Content-Type: text\/plain/, /$cutline/p" \
-	  | sed '1,2d;$d;' 
+	} | sed -n "/$startline/, /$cutline/p" \
+      | sed '/^Content-Type:/d' \
+	  | sed '1d;$d;' \
+      | sed '/./,$!d'
 }
+    # temp solution for my blackberry q10.
+	#} | sed -n "/Status: RO/, /$cutline/p" \
 
 #获取邮件附件
 #$1 邮件序号
