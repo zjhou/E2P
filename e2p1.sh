@@ -76,6 +76,17 @@ format() {
 	sed -e '1 s/\(.*\)/title: \1/' -e '1 a ---' $1
 }
 
+ddNotify() {
+cat << EOF
+    __
+    link: http://zjhou.com/blog
+    fileName: $1
+    content: 
+    `sed -n '3,6p' $global_local_posts/$1.md`
+    __
+EOF
+}
+
 add() {
 	#local title=`get_mail_text $1 | sed -n '1p'`		
 	local fileName=`gen_rndNum`
@@ -96,8 +107,8 @@ add() {
 	update
 
 	if is_mail_on; then
-		echo "博文部署成功，您可以点击查看：http://$global_blog_url" \
-		| mail -s "部署成功" $global_default_manager
+		#echo "博文部署成功，filename: $fileName 您可以点击查看：http://$global_blog_url" \
+        addNotify $fileName | mail -s "部署成功" $global_default_manager
 	fi
 }
 #列出所有博文的目录及其头三行摘要
@@ -105,7 +116,7 @@ getHead(){
     local files=(`ls -lt $1 | awk '{print $9}'`)
     for file in ${files[@]}; do
         echo $file 
-        head -n3 $1/$file
+        sed -n '3,6p' $1/$file
         echo -e "\n\n\n"
     done
 }
