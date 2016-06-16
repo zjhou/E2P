@@ -13,7 +13,7 @@ global_vars() {
 	                "隐藏" "恢复" "备份" "更新"\
 	                "帮助" "通知" "空间" "人事")
 	#管理员白名单	
-	global_white_list=("wintrace@outlook.com" "zhoujiahao@oshadan.com"  )		
+	global_white_list=("wintrace@outlook.com" "test@yourserver.com"  )		
 	#默认管理员
 	global_default_manager="${global_white_list[0]}"
 	#临时文件存放路径，不能为空
