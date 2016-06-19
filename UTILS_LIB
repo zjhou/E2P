@@ -197,6 +197,13 @@ EOF
 	return $?
 }
 
+#$1 kwd
+#判断标准输入中是否有关键字
+has_kwd?(){
+    grep $1
+    return $?
+}
+
 #检测文件夹是否为空
 #$1 dir
 is_dir_empty?() {
