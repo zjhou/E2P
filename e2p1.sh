@@ -76,22 +76,26 @@ format() {
 	sed -e '1 s/\(.*\)/title: \1/' -e '1 a ---' $1
 }
 
-ddNotify() {
+addNotify() {
 cat << EOF
     __
     link: http://zjhou.com/blog
     fileName: $1
     content: 
     `sed -n '3,6p' $global_local_posts/$1.md`
-    __
 EOF
 }
 
 add() {
 	#local title=`get_mail_text $1 | sed -n '1p'`		
 	local fileName=`gen_rndNum`
+
+    if get_mail_text | has_kwd? poem:;then
+	    get_mail_text $1 | s2t.py | format > $global_local_posts/$fileName.md
+    else
+	    get_mail_text $1 | format > $global_local_posts/$fileName.md
+    fi
     
-	get_mail_text $1 | format > $global_local_posts/$fileName.md
 
 	if has_attach? $1; then
 		local imgs=(`get_mail_attachment $1 $global_local_imgs`)
@@ -359,10 +363,11 @@ MAIN (){
 
 	run_cmd $subj_cmd $email_num
 
+	del_mail $email_num
+
 	if ! is_dir_empty? $global_tmpbox; then
 		rm $global_tmpbox/*
 	fi
-	del_mail $email_num
 }
 
 #***************************************************
