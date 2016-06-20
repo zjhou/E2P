@@ -93,9 +93,9 @@ add() {
 	local fileName=`gen_rndNum`
 
     if get_mail_text | has_kwd? poem:;then
-	    get_mail_text $1 | s2t.py | format $fileName > $global_local_posts/$fileName.md
+	    get_mail_text $1 | opencc | format $fileName > $global_local_posts/$fileName.md
     else
-	    get_mail_text $1 | format $fileName> $global_local_posts/$fileName.md
+	    get_mail_text $1 | opencc | format $fileName> $global_local_posts/$fileName.md
     fi
     
 
@@ -201,6 +201,23 @@ del() {
 	is_mail_on && \
 	cat $global_tmpbox/del.log \
 	| mail -s "操作日志" $global_default_manager #将结果通过邮件回传给管理员
+}
+
+del_by_reg() {
+
+    local condtions=(`get_mail_text $1`)
+    for cond in ${condtions[@]}; do
+        local target=(`fuzzy_query $cond $global_local_posts`)
+        for file in ${target[@]}; do
+            if [ -e $file ]; then
+                rm $file
+            fi
+        done
+    done
+
+    update
+
+    echo "del_by_reg: 操作执行完毕." | mail -s "删除日志" $global_default_manager
 }
 
 edit(){
@@ -326,6 +343,7 @@ run_cmd() {
 		"发布" ) add $2;;
         "發布" ) add $2;;
 		"删除" ) del $2;;
+		"DELBYREG" ) del_by_reg $2;;
 		"目录" ) list ;;
 #		"编辑" ) edit ;;
 		"隐藏" ) hide ;;
