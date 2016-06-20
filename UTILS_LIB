@@ -269,3 +269,16 @@ EOF
 	ls -rt *
 	mv /var/tmp/* $2
 }
+
+#模糊查询
+#$1 - condition
+#$2 - direct
+fuzzy_query() {
+    {
+    grep $1 $2/*
+    if ! [ $? -eq 0 ]; then
+        local cond=`echo $1 | opencc`
+        grep $cond $2/*
+    fi
+    } | cut -d':' -f1
+}
