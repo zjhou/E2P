@@ -72,8 +72,10 @@ update() {
 # * 格式：第一行为博文的名字，不能为空行。
 
 #add_helper - format text 
+#$1 - id
 format() {
-	sed -e '1 s/\(.*\)/title: \1/' -e '1 a ---' $1
+	sed -e '1 s/\(.*\)/title: \1/' \
+        -e "1 a id: $1\n---"
 }
 
 addNotify() {
@@ -91,9 +93,9 @@ add() {
 	local fileName=`gen_rndNum`
 
     if get_mail_text | has_kwd? poem:;then
-	    get_mail_text $1 | s2t.py | format > $global_local_posts/$fileName.md
+	    get_mail_text $1 | s2t.py | format $fileName > $global_local_posts/$fileName.md
     else
-	    get_mail_text $1 | format > $global_local_posts/$fileName.md
+	    get_mail_text $1 | format $fileName> $global_local_posts/$fileName.md
     fi
     
 
