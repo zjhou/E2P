@@ -14,7 +14,7 @@ VARS_CONF
 $ crontab -e
 加入一行
 ```
-* * * * * cd path/to/E2P/ && e2p.sh
+* * * * * cd path/to/E2P/ && ./e2p.sh
 ```
 
 ### 主要功能
