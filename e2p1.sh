@@ -30,7 +30,7 @@ include() {
 get_manager_mailnum() {
 	#通过在配置文件~/.mailrc或/etc/nail.rc中设置headline的值
 	#可以控制mail -H的输出字段。
-	#这里headline的值为"%m %30s %s"
+	#这里headline的值为"%m %30f %s"
 	#第一个字段的值是邮件序号。
 	#第二个字段的值是发件人的地址。
 	#第三个字段的值是邮件主题。
