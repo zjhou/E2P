@@ -37,6 +37,9 @@ get_manager_mailnum() {
 	local user=(`mail -H | awk '{print $2}'`)
 	local subj=(`mail -H | awk '{print $3}'`)
 
+	#echo "user $user"
+	#echo "subj $subj"
+
 	local len=${#user[@]}
 	for ((i = 0; i < $len; i++)); do
 		is_in? ${user[$i]} ${global_white_list[@]} && \
@@ -62,7 +65,7 @@ set_manager() {
 update() {
 	cd $global_local_blog && hexo clean --silent && hexo g --silent
 
-	rm -r $global_site_blog/*
+	#rm -r $global_site_blog/*
 	cp -R $global_local_htmls/* $global_site_blog/
 }
 
@@ -75,6 +78,7 @@ update() {
 #$1 - id
 format() {
 	sed -e '1 s/\(.*\)/title: \1/' \
+        -e "1 a dt: `date +'%Y %m %d'`"\
         -e "1 a id: $1\n---"
 }
 
@@ -93,9 +97,10 @@ add() {
 	local fileName=`gen_rndNum`
 
     if get_mail_text | has_kwd? poem:;then
-	    get_mail_text $1 | opencc | format $fileName > $global_local_posts/$fileName.md
+	    #get_mail_text $1 | opencc | format $fileName > $global_local_posts/$fileName.md
+	    get_mail_text $1 | format $fileName > $global_local_posts/$fileName.md
     else
-	    get_mail_text $1 | opencc | format $fileName> $global_local_posts/$fileName.md
+	    get_mail_text $1 | format $fileName> $global_local_posts/$fileName.md
     fi
     
 
@@ -341,7 +346,7 @@ chage_info_state() {
 run_cmd() {
 	case "$1" in
 		"发布" ) add $2;;
-        "發布" ) add $2;;
+        	"發布" ) add $2;;
 		"删除" ) del $2;;
 		"DELBYREG" ) del_by_reg $2;;
 		"目录" ) list ;;
@@ -362,7 +367,9 @@ run_cmd() {
 #***************************************************
 #为了程序可读性，统一在主函数调用该脚本里其他函数
 MAIN (){
-	mail -e || exit
+
+	mail -e || exit 0
+
 
 	include
 
@@ -370,9 +377,11 @@ MAIN (){
 
 	email_num=`get_manager_mailnum`
 
+
 	if [ -z $email_num ];then 
-		exit
+		exit 0
 	fi
+
 
 	if is_mail_on ; then
 		set_manager $email_num
@@ -380,16 +389,23 @@ MAIN (){
 
 	subj_cmd=`get_mail_subj $email_num`
 
+	echo --SPE subj: $subj_cmd--
+
 
 	run_cmd $subj_cmd $email_num
+
+	echo --handle done--
 
 	del_mail $email_num
 
 	if ! is_dir_empty? $global_tmpbox; then
 		rm $global_tmpbox/*
 	fi
+
+	exit 0
 }
 
+echo - enter e2p main -
 #***************************************************
 #***************************************************
 #DO NOT CHANGE ANYTHING HERE ***********************
